@@ -4,7 +4,7 @@ class NominaModel {
 
     static async create(datos) {
         const sql = `
-      INSERT INTO calculo_nomina (
+      INSERT INTO CALCULO_NOMINA (
         sueldo_bruto_anual,
         pagas_anuales,
         edad,
@@ -39,22 +39,34 @@ class NominaModel {
             datos.id_usuario
         ];
 
-        const [result] = await db.query(sql, params);
-        return result.insertId;
+        try {
+            const [result] = await db.query(sql, params);
+            return result.insertId;
+        } catch (error) {
+            throw new Error(`Error al guardar la nómina: ${error.message}`);
+        }
     }
 
     static async findByUserId(idUsuario) {
-        const [rows] = await db.query(
-            "SELECT * FROM calculo_nomina WHERE id_usuario = ? ORDER BY id_nomina DESC", [idUsuario]
-        );
-        return rows;
+        try {
+            const [rows] = await db.query(
+                "SELECT * FROM CALCULO_NOMINA WHERE id_usuario = ? ORDER BY id_nomina DESC", [idUsuario]
+            );
+            return rows;
+        } catch (error) {
+            throw new Error(`Error al obtener el historial de nómina: ${error.message}`);
+        }
     }
 
     static async delete(id) {
-        const [result] = await db.query(
-            "DELETE FROM calculo_nomina WHERE id_nomina = ?", [id]
-        );
-        return result.affectedRows;
+        try {
+            const [result] = await db.query(
+                "DELETE FROM CALCULO_NOMINA WHERE id_nomina = ?", [id]
+            );
+            return result.affectedRows;
+        } catch (error) {
+            throw new Error(`Error al eliminar la nómina: ${error.message}`);
+        }
     }
 }
 
