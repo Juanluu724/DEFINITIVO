@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/divisas_service.dart';
 
 // --- CLASE MODELO (Datos de la moneda) ---
 class Currency {
@@ -18,6 +20,7 @@ class DivisasScreen extends StatefulWidget {
 }
 
 class _DivisasScreenState extends State<DivisasScreen> {
+  final DivisasService _service = DivisasService();
   final List<Currency> _staticCurrencies = [
     Currency(code: 'EUR', name: 'Euro', rate: 1.0000),
     Currency(code: 'USD', name: 'Dólar estadounidense', rate: 1.0540),
@@ -41,12 +44,21 @@ class _DivisasScreenState extends State<DivisasScreen> {
 
   late Currency _fromCurrency;
   late Currency _toCurrency;
+  int? _userId;
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     _fromCurrency = _staticCurrencies.firstWhere((c) => c.code == 'USD');
     _toCurrency = _staticCurrencies.firstWhere((c) => c.code == 'EUR');
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _userId = prefs.getInt('user_id'));
   }
 
   void _calculate() {
@@ -64,6 +76,52 @@ class _DivisasScreenState extends State<DivisasScreen> {
     setState(() {
       _resultController.text = result.toStringAsFixed(2);
     });
+  }
+
+  Future<void> _guardar() async {
+    if (_userId == null) {
+      _show("Inicia sesion para guardar la operacion");
+      return;
+    }
+
+    final amount = double.tryParse(
+          _amountController.text.replaceAll(',', '.'),
+        ) ??
+        0.0;
+    final result = double.tryParse(
+          _resultController.text.replaceAll(',', '.'),
+        ) ??
+        0.0;
+
+    if (amount <= 0 || result <= 0) {
+      _show("Calcula una conversion valida antes de guardar");
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final response = await _service.guardarTransaccion(
+        idUsuario: _userId!,
+        cantidad: amount,
+        resultado: result,
+        origen: _fromCurrency.code,
+        destino: _toCurrency.code,
+      );
+      final id = response["id_operacion"];
+      _show("Guardado. Ref: $id");
+    } catch (e) {
+      _show("No se pudo guardar: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  void _show(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   String _currencyFlag(String code) {
@@ -261,6 +319,39 @@ class _DivisasScreenState extends State<DivisasScreen> {
                 controller: _resultController,
                 readOnly: true,
                 hint: '0.00',
+              ),
+
+              const SizedBox(height: 40),
+
+              SizedBox(
+                width: 220,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _guardar,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0077CC),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          "Guardar",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
               ),
 
               const SizedBox(height: 40),

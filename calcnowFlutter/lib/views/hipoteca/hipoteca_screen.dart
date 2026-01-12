@@ -1,5 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/hipoteca_service.dart';
 
 class HipotecaScreen extends StatefulWidget {
   const HipotecaScreen({super.key});
@@ -9,6 +11,7 @@ class HipotecaScreen extends StatefulWidget {
 }
 
 class _HipotecaScreenState extends State<HipotecaScreen> {
+  final HipotecaService _service = HipotecaService();
   final TextEditingController precioController = TextEditingController();
   final TextEditingController ahorroController = TextEditingController();
   final TextEditingController plazoController = TextEditingController();
@@ -18,6 +21,24 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
 
   String tipoInteres = "fijo";
   String estadoInmueble = "nuevo";
+  int? _userId;
+  double _lastCuota = 0;
+  double _lastTotal = 0;
+  double _lastMonto = 0;
+  double _lastInteres = 0;
+  int _lastAnios = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _userId = prefs.getInt('user_id'));
+  }
 
   void calcularHipoteca() {
     final precio = double.tryParse(precioController.text) ?? 0;
@@ -44,6 +65,43 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
         (1 - (1 / pow(1 + interesMensual, cuotas)));
 
     resultadoController.text = "${cuota.toStringAsFixed(2)} € / mes";
+    _lastCuota = cuota;
+    _lastTotal = cuota * cuotas;
+    _lastMonto = importe;
+    _lastInteres = interes;
+    _lastAnios = plazo;
+
+    _guardarSiAplica();
+  }
+
+  Future<void> _guardarSiAplica() async {
+    if (_userId == null) {
+      return;
+    }
+    if (_lastCuota <= 0 || _lastMonto <= 0 || _lastAnios <= 0) {
+      return;
+    }
+
+    try {
+      final response = await _service.guardarSimulacion(
+        idUsuario: _userId!,
+        monto: _lastMonto,
+        interes: _lastInteres,
+        anios: _lastAnios,
+        cuotaMensual: _lastCuota,
+        totalPagado: _lastTotal,
+      );
+      final id = response["id_hipoteca"];
+      _show("Guardado. Ref: $id");
+    } catch (e) {
+      _show("No se pudo guardar: $e");
+    }
+  }
+
+  void _show(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   void borrarDatos() {
@@ -53,6 +111,11 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
     interesController.clear();
     localizacionController.clear();
     resultadoController.clear();
+    _lastCuota = 0;
+    _lastTotal = 0;
+    _lastMonto = 0;
+    _lastInteres = 0;
+    _lastAnios = 0;
 
     setState(() {
       tipoInteres = "fijo";

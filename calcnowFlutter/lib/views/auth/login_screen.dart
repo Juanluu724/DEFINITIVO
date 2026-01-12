@@ -31,6 +31,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (response["success"] == true || response["ok"] == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('logged', true);
+      final user = response["user"];
+      if (user is Map && user["id_usuario"] != null) {
+        await prefs.setInt('user_id', user["id_usuario"]);
+      }
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
       }

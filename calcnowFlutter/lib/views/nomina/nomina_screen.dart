@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/nomina_service.dart';
 import 'refnomina_screen.dart';
 
 class NominaScreen extends StatefulWidget {
@@ -13,6 +13,8 @@ class NominaScreen extends StatefulWidget {
 class _NominaScreenState extends State<NominaScreen> {
   final sueldoCtrl = TextEditingController();
   final edadCtrl = TextEditingController();
+  final NominaService _service = NominaService();
+  int? _userId;
 
   String pagas = "12";
   String contrato = "General";
@@ -28,6 +30,18 @@ class _NominaScreenState extends State<NominaScreen> {
 
   bool cargando = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadUserId();
+  }
+
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _userId = prefs.getInt('user_id'));
+  }
+
   Future<void> calcularNomina() async {
     if (sueldoCtrl.text.isEmpty || edadCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -42,44 +56,43 @@ class _NominaScreenState extends State<NominaScreen> {
     setState(() => cargando = true);
 
     try {
-      final response = await http.post(
-        Uri.parse("http://localhost:3000/api/nomina/calcular"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "salario_bruto_anual": double.parse(sueldoCtrl.text),
-          "pagas": int.parse(pagas),
-          "edad": int.parse(edadCtrl.text),
-          "grupo": grupo,
-          "ubicacion": comunidad,
-          "discapacidad": discapacidad,
-          "estado_civil": estadoCivil,
-          "hijos": hijos ? "Si" : "No",
-          "conyuge_rentas_altas": conyugeRentas ? "Si" : "No",
-          "traslado_trabajo": traslado ? "Si" : "No",
-          "dependientes": dependientes ? "Si" : "No",
-          "tipo_contrato": contrato,
-        }),
-      );
+      final data = await _service.calcularNomina({
+        "sueldo_bruto_anual": double.parse(sueldoCtrl.text),
+        "pagas_anuales": int.parse(pagas),
+        "edad": int.parse(edadCtrl.text),
+        "ubicacion_fiscal": comunidad,
+        "grupo_profesional": grupo,
+        "grado_discapacidad": _parseDiscapacidad(discapacidad),
+        "estado_civil": estadoCivil,
+        "hijos": hijos,
+        "conyuge_rentas_altas": conyugeRentas,
+        "traslado_trabajo": traslado,
+        "dependientes": dependientes,
+        "tipo_contrato": contrato,
+        "id_usuario": _userId,
+      });
 
-      if (response.statusCode != 200) {
-        throw Exception("Error backend");
-      }
-
-      final data = jsonDecode(response.body);
-      final netoAnual =
-          double.parse(data["salario_neto_anual"].toString());
+      final netoMensual =
+          double.parse(data["salario_neto_mensual"].toString());
+      final irpfMensual = double.parse(data["irpf"].toString());
+      final seguridadMensual =
+          double.parse(data["seguridad_social"].toString());
+      final pagasInt = int.parse(pagas);
+      final netoAnual = netoMensual * pagasInt;
 
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => RefNominaScreen(
-            netoMensual: data["salario_neto_mensual"],
+            netoMensual: netoMensual.toStringAsFixed(2),
             pagasExtra:
-                (netoAnual / int.parse(pagas)).toStringAsFixed(2),
-            netoAnual: data["salario_neto_anual"],
-            retencionAnual: data["retencion_anual"],
+                (netoAnual / pagasInt).toStringAsFixed(2),
+            netoAnual: netoAnual.toStringAsFixed(2),
+            retencionAnual:
+                (irpfMensual * pagasInt).toStringAsFixed(2),
             tipoRetencion: "15%",
-            seguridadSocial: data["seguridad_social"],
+            seguridadSocial:
+                (seguridadMensual * pagasInt).toStringAsFixed(2),
           ),
         ),
       );
@@ -325,5 +338,11 @@ class _NominaScreenState extends State<NominaScreen> {
         ),
       ),
     );
+  }
+
+  double _parseDiscapacidad(String value) {
+    if (value.contains("65")) return 65;
+    if (value.contains("33")) return 33;
+    return 0;
   }
 }

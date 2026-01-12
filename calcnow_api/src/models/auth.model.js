@@ -19,8 +19,13 @@ class AuthModel {
     }
 
     static async create(email, password) {
-        const query = "INSERT INTO usuario (correo_electronico, contrasena) VALUES (?, ?)";
-        const [result] = await db.query(query, [email, password]);
+        const baseName = email ? email.split('@')[0] : 'usuario';
+        const nombreUsuario = baseName.substring(0, 50);
+        const query = `
+            INSERT INTO usuario (nombre_usuario, correo_electronico, fecha_registro, contrasena)
+            VALUES (?, ?, CURDATE(), ?)
+        `;
+        const [result] = await db.query(query, [nombreUsuario, email, password]);
         return result;
     }
 
