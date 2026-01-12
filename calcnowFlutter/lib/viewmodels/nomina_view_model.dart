@@ -30,8 +30,12 @@ class NominaViewModel extends ChangeNotifier {
   void setDependientes(bool v) { dependientes = v; notifyListeners(); }
 
   Future<Map<String, dynamic>> calcular(String sueldoStr, String edadStr) async {
-    if (sueldoStr.isEmpty || edadStr.isEmpty) {
-      throw Exception("Rellena sueldo y edad");
+    final sueldo = double.tryParse(sueldoStr);
+    final edad = int.tryParse(edadStr);
+    final pagasInt = int.tryParse(pagas);
+
+    if (sueldo == null || sueldo <= 0 || edad == null || edad <= 0 || pagasInt == null || pagasInt <= 0) {
+      throw Exception("Introduce sueldo, pagas y edad válidos");
     }
 
     _loading = true;
@@ -39,9 +43,9 @@ class NominaViewModel extends ChangeNotifier {
 
     try {
       final data = {
-        "salario_bruto_anual": double.parse(sueldoStr),
-        "pagas": int.parse(pagas),
-        "edad": int.parse(edadStr),
+        "salario_bruto_anual": sueldo,
+        "pagas": pagasInt,
+        "edad": edad,
         "grupo": grupo,
         "ubicacion": comunidad,
         "discapacidad": discapacidad,
@@ -55,8 +59,6 @@ class NominaViewModel extends ChangeNotifier {
 
       final result = await _service.calcularNomina(data);
       return result;
-    } catch (e) {
-      rethrow;
     } finally {
       _loading = false;
       notifyListeners();
