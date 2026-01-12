@@ -1,9 +1,9 @@
 const divisasService = require('../services/divisas.service');
 
-exports.guardar = async (req, res) => {
+exports.guardar = async(req, res) => {
     try {
-        const { id_usuario, cantidad, resultado, origen, destino } = req.body;
-        const respuesta = await divisasService.guardarTransaccion(id_usuario, cantidad, resultado, origen, destino);
+        const { id_usuario, cantidad, resultado, origen, destino, valor_tasa } = req.body;
+        const respuesta = await divisasService.guardarTransaccion(id_usuario, cantidad, resultado, origen, destino, valor_tasa);
         res.status(201).json(respuesta);
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

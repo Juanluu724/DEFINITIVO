@@ -1,4 +1,12 @@
 const NominaModel = require('../models/nomina.model');
+const OperacionModel = require('../models/operacion.model');
+
+const toNumberOrNull = (valor, defaultValue = null) => {
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? numero : defaultValue;
+};
+
+const toBinaryFlag = (valor) => valor ? 1 : 0;
 
 // -------------------------------
 // CÁLCULO DE NÓMINA
@@ -7,7 +15,7 @@ exports.ejecutarCalculo = (entrada) => {
     const brutoAnual = Number(entrada.sueldo_bruto_anual);
     const pagas = Number(entrada.pagas_anuales);
 
-    if (!brutoAnual || brutoAnual <= 0 || !pagas || pagas <= 0) {
+    if (!Number.isFinite(brutoAnual) || brutoAnual <= 0 || !Number.isFinite(pagas) || pagas <= 0) {
         throw new Error("Datos de salario o pagas inválidos");
     }
 
@@ -28,31 +36,47 @@ exports.ejecutarCalculo = (entrada) => {
 // GUARDAR NÓMINA (SOLO SI HAY USUARIO)
 // -------------------------------
 exports.guardarDirecto = async(entrada, resultado) => {
-    const datosParaGuardar = {
-        sueldo_bruto_anual: entrada.sueldo_bruto_anual,
-        pagas_anuales: entrada.pagas_anuales,
-        edad: entrada.edad,
-        ubicacion_fiscal: entrada.ubicacion_fiscal,
-        grupo_profesional: entrada.grupo_profesional,
-        grado_discapacidad: entrada.grado_discapacidad ? entrada.grado_discapacidad : 0,
-        estado_civil: entrada.estado_civil,
-        hijos: entrada.hijos ? 1 : 0,
-        dependientes: entrada.dependientes ? 1 : 0,
-        traslado_trabajo: entrada.traslado_trabajo ? 1 : 0,
-        conyuge_rentas_altas: entrada.conyuge_rentas_altas ? 1 : 0,
-        cuota_seguridad_social: resultado.seguridad_social,
-        sueldo_neto_mensual: resultado.salario_neto_mensual,
-        id_usuario: entrada.id_usuario
-    };
+    try {
+        const datosParaGuardar = {
+            sueldo_bruto_anual: toNumberOrNull(entrada.sueldo_bruto_anual),
+            pagas_anuales: toNumberOrNull(entrada.pagas_anuales),
+            edad: toNumberOrNull(entrada.edad),
+            ubicacion_fiscal: entrada.ubicacion_fiscal || null,
+            grupo_profesional: entrada.grupo_profesional || null,
+            grado_discapacidad: toNumberOrNull(entrada.grado_discapacidad, 0),
+            estado_civil: entrada.estado_civil || null,
+            hijos: toNumberOrNull(entrada.hijos, 0),
+            dependientes: toNumberOrNull(entrada.dependientes, 0),
+            traslado_trabajo: toBinaryFlag(entrada.traslado_trabajo),
+            conyuge_rentas_altas: toBinaryFlag(entrada.conyuge_rentas_altas),
+            cuota_seguridad_social: resultado.seguridad_social,
+            sueldo_neto_mensual: resultado.salario_neto_mensual,
+            id_usuario: toNumberOrNull(entrada.id_usuario)
+        };
 
-    return await NominaModel.create(datosParaGuardar);
+        const idNomina = await NominaModel.create(datosParaGuardar);
+        if (datosParaGuardar.id_usuario) {
+            await OperacionModel.create('NOMINA', datosParaGuardar.id_usuario);
+        }
+        return idNomina;
+    } catch (error) {
+        throw new Error(`No se pudo guardar la nómina: ${error.message}`);
+    }
 };
 
 // -------------------------------
 exports.historial = async(idUsuario) => {
-    return await NominaModel.findByUserId(idUsuario);
+    try {
+        return await NominaModel.findByUserId(idUsuario);
+    } catch (error) {
+        throw new Error(`No se pudo recuperar el historial: ${error.message}`);
+    }
 };
 
 exports.eliminar = async(id) => {
-    return await NominaModel.delete(id);
+    try {
+        return await NominaModel.delete(id);
+    } catch (error) {
+        throw new Error(`No se pudo eliminar la nómina: ${error.message}`);
+    }
 };

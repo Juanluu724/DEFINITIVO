@@ -1,7 +1,6 @@
-const mysql = require('mysql2');
-require('dotenv').config(); // Cargar variables de entorno
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
-// Crear un pool de conexiones 
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
@@ -13,5 +12,13 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
-// Exportar versión con promesas para usar con async/await en tus modelos
-module.exports = pool.promise();
+pool.getConnection()
+    .then((connection) => {
+        connection.release();
+        console.log('Conexión a MySQL establecida correctamente.');
+    })
+    .catch((error) => {
+        console.error('No se pudo establecer la conexión a MySQL:', error.message);
+    });
+
+module.exports = pool;

@@ -23,13 +23,13 @@ class HipotecaModel {
     }
 
     // --- SQL Methods ---
-    static async create({ id_usuario, monto, interes, anios, cuota, total }) {
+    static async create({ id_usuario, monto, interes, anios, cuota, total, coste_aportado = null, localizacion = null, estado_inmueble = null, id_simulacion = null }) {
         const query = `
-            INSERT INTO SIMULACION_HIPOTECA 
-            (precio_inmueble, porcentaje_interes, plazo_anios, cuota_mensual, precio_final, id_usuario)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO SIMULACION_HIPOTECA
+            (id_simulacion, precio_inmueble, coste_aportado, porcentaje_interes, plazo_anios, localizacion, estado_inmueble, cuota_mensual, precio_final, id_usuario)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const params = [monto, interes, anios, cuota, total, id_usuario];
+        const params = [id_simulacion || null, monto, coste_aportado, interes, anios, localizacion, estado_inmueble, cuota, total, id_usuario];
         const [result] = await db.query(query, params);
         return result.insertId;
     }

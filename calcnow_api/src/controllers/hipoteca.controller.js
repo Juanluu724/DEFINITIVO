@@ -10,14 +10,21 @@ exports.calcularHipoteca = (req, res) => {
     }
 };
 
-exports.guardarHipoteca = async (req, res) => {
+exports.guardarHipoteca = async(req, res) => {
     try {
-        // Ajustamos los parámetros según lo que espera tu servicio
-        const { id_usuario, monto, interes, anios, resultado } = req.body;
-        const respuesta = await hipotecaService.guardarSimulacion(id_usuario, monto, interes, anios, resultado);
+        const { id_usuario, monto, interes, anios, resultado, coste_aportado, localizacion, estado_inmueble, id_simulacion } = req.body;
+        const respuesta = await hipotecaService.guardarSimulacion(
+            id_usuario,
+            monto,
+            interes,
+            anios,
+            resultado,
+            { coste_aportado, localizacion, estado_inmueble, id_simulacion }
+        );
         res.status(201).json(respuesta);
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        const status = error.message.includes('id_usuario') || error.message.includes('número') ? 400 : 500;
+        res.status(status).json({ success: false, error: error.message });
     }
 };
 
@@ -27,7 +34,8 @@ exports.getHistorial = async (req, res) => {
         const lista = await hipotecaService.historial(id_usuario);
         res.status(200).json({ success: true, data: lista });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        const status = error.message.includes('numérico') ? 400 : 500;
+        res.status(status).json({ success: false, error: error.message });
     }
 };
 
@@ -37,6 +45,7 @@ exports.eliminarHistorial = async (req, res) => {
         const resultado = await hipotecaService.eliminar(id);
         res.status(200).json({ success: true, resultado });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        const status = error.message.includes('numérico') ? 400 : 500;
+        res.status(status).json({ success: false, error: error.message });
     }
 };
