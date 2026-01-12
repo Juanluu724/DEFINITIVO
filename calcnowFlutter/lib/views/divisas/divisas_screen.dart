@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/divisas_service.dart';
 
-// --- CLASE MODELO (Datos de la moneda) ---
 class Currency {
   final String code;
   final String name;
@@ -11,7 +10,6 @@ class Currency {
   Currency({required this.code, required this.name, required this.rate});
 }
 
-// --- PANTALLA PRINCIPAL ---
 class DivisasScreen extends StatefulWidget {
   const DivisasScreen({super.key});
 
@@ -21,23 +19,27 @@ class DivisasScreen extends StatefulWidget {
 
 class _DivisasScreenState extends State<DivisasScreen> {
   final DivisasService _service = DivisasService();
-  final List<Currency> _staticCurrencies = [
-    Currency(code: 'EUR', name: 'Euro', rate: 1.0000),
-    Currency(code: 'USD', name: 'Dólar estadounidense', rate: 1.0540),
-    Currency(code: 'GBP', name: 'Libra esterlina', rate: 0.8320),
-    Currency(code: 'JPY', name: 'Yen japonés', rate: 163.5000),
-    Currency(code: 'CHF', name: 'Franco suizo', rate: 0.9350),
-    Currency(code: 'CAD', name: 'Dólar canadiense', rate: 1.4800),
-    Currency(code: 'AUD', name: 'Dólar australiano', rate: 1.6200),
-    Currency(code: 'CNY', name: 'Yuan chino', rate: 7.6300),
-    Currency(code: 'MXN', name: 'Peso mexicano', rate: 21.5000),
-    Currency(code: 'COP', name: 'Peso colombiano', rate: 4650.0000),
-    Currency(code: 'ARS', name: 'Peso argentino', rate: 1050.0000),
-    Currency(code: 'BRL', name: 'Real brasileño', rate: 6.1000),
-    Currency(code: 'KRW', name: 'Won surcoreano', rate: 1475.0000),
-    Currency(code: 'INR', name: 'Rupia india', rate: 89.2000),
-    Currency(code: 'SEK', name: 'Corona sueca', rate: 11.5500),
-  ];
+  final Map<String, String> _currencyNames = {
+    'EUR': 'Euro',
+    'USD': 'Dolar estadounidense',
+    'GBP': 'Libra esterlina',
+    'JPY': 'Yen japones',
+    'CHF': 'Franco suizo',
+    'CAD': 'Dolar canadiense',
+    'AUD': 'Dolar australiano',
+    'CNY': 'Yuan chino',
+    'MXN': 'Peso mexicano',
+    'COP': 'Peso colombiano',
+    'ARS': 'Peso argentino',
+    'BRL': 'Real brasileno',
+    'KRW': 'Won surcoreano',
+    'INR': 'Rupia india',
+    'SEK': 'Corona sueca',
+  };
+  final String _baseCurrency = 'EUR';
+  List<Currency> _currencies = [];
+  bool _loadingRates = false;
+  String _ratesError = '';
 
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _resultController = TextEditingController();
@@ -50,15 +52,61 @@ class _DivisasScreenState extends State<DivisasScreen> {
   @override
   void initState() {
     super.initState();
-    _fromCurrency = _staticCurrencies.firstWhere((c) => c.code == 'USD');
-    _toCurrency = _staticCurrencies.firstWhere((c) => c.code == 'EUR');
+    _currencies = _fallbackCurrencies();
+    _fromCurrency = _currencies.firstWhere((c) => c.code == 'USD',
+        orElse: () => _currencies.first);
+    _toCurrency = _currencies.firstWhere((c) => c.code == 'EUR',
+        orElse: () => _currencies.first);
     _loadUserId();
+    _loadRates();
   }
 
   Future<void> _loadUserId() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() => _userId = prefs.getInt('user_id'));
+  }
+
+  List<Currency> _fallbackCurrencies() {
+    return _currencyNames.entries.map((e) {
+      final rate = e.key == _baseCurrency ? 1.0 : 1.0;
+      return Currency(code: e.key, name: e.value, rate: rate);
+    }).toList();
+  }
+
+  Future<void> _loadRates() async {
+    setState(() {
+      _loadingRates = true;
+      _ratesError = '';
+    });
+    try {
+      final response = await _service.fetchRates(base: _baseCurrency);
+      final rates = response['rates'] as Map<String, dynamic>;
+      final updated = <Currency>[];
+      _currencyNames.forEach((code, name) {
+        final raw = rates[code];
+        final rate =
+            raw is num ? raw.toDouble() : (code == _baseCurrency ? 1.0 : null);
+        if (rate != null) {
+          updated.add(Currency(code: code, name: name, rate: rate));
+        }
+      });
+      if (updated.isNotEmpty) {
+        setState(() {
+          _currencies = updated;
+          _fromCurrency = _currencies.firstWhere((c) => c.code == 'USD',
+              orElse: () => _currencies.first);
+          _toCurrency = _currencies.firstWhere((c) => c.code == 'EUR',
+              orElse: () => _currencies.first);
+        });
+      }
+    } catch (e) {
+      setState(() => _ratesError = 'No se pudo actualizar');
+    } finally {
+      if (mounted) {
+        setState(() => _loadingRates = false);
+      }
+    }
   }
 
   void _calculate() {
@@ -69,9 +117,7 @@ class _DivisasScreenState extends State<DivisasScreen> {
 
     final double amount =
         double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0.0;
-
-    final double result =
-        (amount / _fromCurrency.rate) * _toCurrency.rate;
+    final double result = (amount / _fromCurrency.rate) * _toCurrency.rate;
 
     setState(() {
       _resultController.text = result.toStringAsFixed(2);
@@ -84,14 +130,10 @@ class _DivisasScreenState extends State<DivisasScreen> {
       return;
     }
 
-    final amount = double.tryParse(
-          _amountController.text.replaceAll(',', '.'),
-        ) ??
-        0.0;
-    final result = double.tryParse(
-          _resultController.text.replaceAll(',', '.'),
-        ) ??
-        0.0;
+    final amount =
+        double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0.0;
+    final result =
+        double.tryParse(_resultController.text.replaceAll(',', '.')) ?? 0.0;
 
     if (amount <= 0 || result <= 0) {
       _show("Calcula una conversion valida antes de guardar");
@@ -124,27 +166,6 @@ class _DivisasScreenState extends State<DivisasScreen> {
     );
   }
 
-  String _currencyFlag(String code) {
-    const flags = {
-      'USD': '🇺🇸',
-      'EUR': '🇪🇺',
-      'GBP': '🇬🇧',
-      'JPY': '🇯🇵',
-      'MXN': '🇲🇽',
-      'COP': '🇨🇴',
-      'ARS': '🇦🇷',
-      'BRL': '🇧🇷',
-      'CAD': '🇨🇦',
-      'AUD': '🇦🇺',
-      'CNY': '🇨🇳',
-      'CHF': '🇨🇭',
-      'KRW': '🇰🇷',
-      'INR': '🇮🇳',
-      'SEK': '🇸🇪',
-    };
-    return flags[code] ?? '';
-  }
-
   Widget _pillTextField({
     required TextEditingController controller,
     bool readOnly = false,
@@ -169,7 +190,7 @@ class _DivisasScreenState extends State<DivisasScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
-          borderSide: const BorderSide(color: Colors.black, width: 1.8),
+          borderSide: const BorderSide(color: Color(0xFF0077CC), width: 2),
         ),
       ),
     );
@@ -184,33 +205,40 @@ class _DivisasScreenState extends State<DivisasScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title,
-            style:
-                const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: Colors.black, width: 1.4),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 10,
+                offset: Offset(0, 6),
+              )
+            ],
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<Currency>(
               value: selected,
               isExpanded: true,
-              items: _staticCurrencies.map((c) {
+              items: _currencies.map((c) {
                 return DropdownMenuItem(
                   value: c,
                   child: Row(
                     children: [
-                      Text(_currencyFlag(c.code),
-                          style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(c.name,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontSize: 13)),
                       ),
+                      const SizedBox(width: 8),
+                      Text(c.code,
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700)),
                     ],
                   ),
                 );
@@ -236,127 +264,178 @@ class _DivisasScreenState extends State<DivisasScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const SizedBox(width: 40),
-                  const Text(
-                    'Cambio divisas',
-                    style:
-                        TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cambio divisas',
+                        style: TextStyle(
+                            fontSize: 28, fontWeight: FontWeight.w900),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Convierte al instante con el mismo esquema visual',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
                   IconButton(
                     icon: const Icon(Icons.home_outlined),
-                    onPressed: () =>
-                        Navigator.pushNamed(context, '/home'),
+                    onPressed: () => Navigator.pushNamed(context, '/home'),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 40),
-
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Importe',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              ),
-              const SizedBox(height: 8),
-              _pillTextField(
-                controller: _amountController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                hint: '0.00',
-                onChanged: (_) => _calculate(),
-              ),
-
-              const SizedBox(height: 40),
-
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _currencyCard(
-                      title: 'Desde',
-                      selected: _fromCurrency,
-                      onChanged: (v) {
-                        setState(() => _fromCurrency = v!);
-                        _calculate();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 32),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        border:
-                            Border.all(color: Colors.black, width: 1.2),
-                      ),
-                      child: const Icon(Icons.swap_horiz),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _currencyCard(
-                      title: 'A',
-                      selected: _toCurrency,
-                      onChanged: (v) {
-                        setState(() => _toCurrency = v!);
-                        _calculate();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 40),
-
-              const Text('Conversión',
-                  style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              _pillTextField(
-                controller: _resultController,
-                readOnly: true,
-                hint: '0.00',
-              ),
-
-              const SizedBox(height: 40),
-
-              SizedBox(
-                width: 220,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _saving ? null : _guardar,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0077CC),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: _saving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          "Guardar",
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: Colors.black, width: 1.2),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1A000000),
+                      blurRadius: 16,
+                      offset: Offset(0, 8),
+                    )
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          "Tasas en tiempo real",
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                              fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                        if (_loadingRates)
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                      ],
+                    ),
+                    if (_ratesError.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _ratesError,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.red,
+                            ),
                           ),
                         ),
+                      ),
+                    const SizedBox(height: 16),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Importe',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                    const SizedBox(height: 8),
+                    _pillTextField(
+                      controller: _amountController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      hint: '0.00',
+                      onChanged: (_) => _calculate(),
+                    ),
+                    const SizedBox(height: 40),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _currencyCard(
+                            title: 'Desde',
+                            selected: _fromCurrency,
+                            onChanged: (v) {
+                              setState(() => _fromCurrency = v!);
+                              _calculate();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 32),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              border: Border.all(color: Colors.black, width: 1.2),
+                            ),
+                            child: const Icon(Icons.swap_horiz),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _currencyCard(
+                            title: 'A',
+                            selected: _toCurrency,
+                            onChanged: (v) {
+                              setState(() => _toCurrency = v!);
+                              _calculate();
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 40),
+                    const Text('Conversion',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    _pillTextField(
+                      controller: _resultController,
+                      readOnly: true,
+                      hint: '0.00',
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: 220,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _saving ? null : _guardar,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0077CC),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: _saving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                "Guardar",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ),
               ),
-
-              const SizedBox(height: 40),
-
-              // LOGO CALCNOW CORRECTO
+              const SizedBox(height: 32),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

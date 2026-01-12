@@ -114,21 +114,34 @@ class _NominaScreenState extends State<NominaScreen> {
       backgroundColor: const Color(0xFFEFF3F8),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(40),
+          padding: const EdgeInsets.all(32),
           child: Column(
             children: [
               const Text(
                 "Calculadora de nómina",
                 style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 6),
+              const Text(
+                "Rellena los datos para obtener tu resultado",
+                style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 28),
 
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _sectionCard(
+                          title: "Datos profesionales",
+                          child: Column(
+                            children: [
                         campo("Sueldo Bruto Anual", sueldoCtrl),
                         campo("Edad", edadCtrl),
                         dropdown("Número de Pagas", pagas, ["12", "14"],
@@ -152,15 +165,18 @@ class _NominaScreenState extends State<NominaScreen> {
                             "¿Traslado por trabajo?",
                             traslado,
                             (v) => setState(() => traslado = v)),
-                      ],
-                    ),
-                  ),
+                            ],
+                          ),
+                        ),
+                      ),
 
-                  const SizedBox(width: 80),
+                  const SizedBox(width: 28),
 
-                  Expanded(
-                    child: Column(
-                      children: [
+                      Expanded(
+                        child: _sectionCard(
+                          title: "Datos personales",
+                          child: Column(
+                            children: [
                         dropdown(
                             "Ubicación del domicilio fiscal",
                             comunidad,
@@ -194,13 +210,16 @@ class _NominaScreenState extends State<NominaScreen> {
                             "¿Personas a tu cargo?",
                             dependientes,
                             (v) => setState(() => dependientes = v)),
-                      ],
-                    ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
 
               ElevatedButton(
                 onPressed: cargando ? null : calcularNomina,
@@ -269,8 +288,14 @@ class _NominaScreenState extends State<NominaScreen> {
           labelText: label,
           filled: true,
           fillColor: Colors.white,
-          border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: const BorderSide(color: Colors.black, width: 1.2),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: const BorderSide(color: Color(0xFF0077CC), width: 2),
+          ),
         ),
       ),
     );
@@ -289,8 +314,14 @@ class _NominaScreenState extends State<NominaScreen> {
           labelText: label,
           filled: true,
           fillColor: Colors.white,
-          border:
-              OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: const BorderSide(color: Colors.black, width: 1.2),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: const BorderSide(color: Color(0xFF0077CC), width: 2),
+          ),
         ),
       ),
     );
@@ -329,6 +360,15 @@ class _NominaScreenState extends State<NominaScreen> {
           color: activo ? const Color(0xFF0077CC) : Colors.white,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color: Colors.black),
+          boxShadow: activo
+              ? const [
+                  BoxShadow(
+                    color: Color(0x330077CC),
+                    blurRadius: 12,
+                    offset: Offset(0, 6),
+                  )
+                ]
+              : null,
         ),
         child: Text(
           texto,
@@ -336,6 +376,38 @@ class _NominaScreenState extends State<NominaScreen> {
               color: activo ? Colors.white : Colors.black,
               fontWeight: FontWeight.bold),
         ),
+      ),
+    );
+  }
+
+  Widget _sectionCard({required String title, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.black, width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
       ),
     );
   }

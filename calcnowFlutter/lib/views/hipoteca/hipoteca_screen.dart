@@ -59,12 +59,11 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
 
     final interesMensual = interes / 100 / 12;
     final cuotas = plazo * 12;
-
     final cuota = importe *
         interesMensual /
         (1 - (1 / pow(1 + interesMensual, cuotas)));
 
-    resultadoController.text = "${cuota.toStringAsFixed(2)} € / mes";
+    resultadoController.text = "${cuota.toStringAsFixed(2)} EUR / mes";
     _lastCuota = cuota;
     _lastTotal = cuota * cuotas;
     _lastMonto = importe;
@@ -132,184 +131,230 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
           children: [
             SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Center(
-                    child: Text(
-                      "CALCULADORA DE HIPOTECAS",
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-
-                  campoTitulo("Precio del inmueble"),
-                  campoTexto(precioController, hint: "Ej: 250000", sufijo: "€"),
-                  campoDescripcion("Calcular qué precio te puedes permitir"),
-                  const SizedBox(height: 30),
-
-                  campoTitulo("Ahorro aportado"),
-                  campoTexto(ahorroController, hint: "Ej: 60000", sufijo: "€"),
-                  campoDescripcion(
-                      "El importe de la hipoteca debe ser inferior o igual al precio."),
-                  const SizedBox(height: 30),
-
-                  campoTitulo("Plazo en años"),
-                  campoTexto(plazoController, hint: "Ej: 25"),
-                  const SizedBox(height: 35),
-
-                  campoTitulo("Tipo de interés"),
-                  const SizedBox(height: 12),
-                  Row(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      botonSeleccion("Fijo", tipoInteres == "fijo",
-                          () => setState(() => tipoInteres = "fijo")),
-                      const SizedBox(width: 14),
-                      botonSeleccion("Variable", tipoInteres == "variable",
-                          () => setState(() => tipoInteres = "variable")),
-                      const SizedBox(width: 14),
+                      const Center(
+                        child: Text(
+                          "CALCULADORA DE HIPOTECAS",
+                          style: TextStyle(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Center(
+                        child: Text(
+                          "Datos claros y resultados al momento",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
                       Container(
-                        width: 120,
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.all(22),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: Colors.black),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: Colors.black, width: 1.2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x1A000000),
+                              blurRadius: 16,
+                              offset: Offset(0, 8),
+                            )
+                          ],
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: TextField(
-                                controller: interesController,
-                                keyboardType: TextInputType.number,
-                                textAlign: TextAlign.center,
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  hintText: "0",
+                            campoTitulo("Precio del inmueble"),
+                            campoTexto(precioController,
+                                hint: "Ej: 250000", sufijo: "EUR"),
+                            campoDescripcion(
+                                "Calcular que precio te puedes permitir"),
+                            const SizedBox(height: 30),
+                            campoTitulo("Ahorro aportado"),
+                            campoTexto(ahorroController,
+                                hint: "Ej: 60000", sufijo: "EUR"),
+                            campoDescripcion(
+                                "El importe de la hipoteca debe ser inferior o igual al precio."),
+                            const SizedBox(height: 30),
+                            campoTitulo("Plazo en anios"),
+                            campoTexto(plazoController, hint: "Ej: 25"),
+                            const SizedBox(height: 35),
+                            campoTitulo("Tipo de interes"),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                botonSeleccion(
+                                  "Fijo",
+                                  tipoInteres == "fijo",
+                                  () => setState(() => tipoInteres = "fijo"),
+                                ),
+                                const SizedBox(width: 14),
+                                botonSeleccion(
+                                  "Variable",
+                                  tipoInteres == "variable",
+                                  () =>
+                                      setState(() => tipoInteres = "variable"),
+                                ),
+                                const SizedBox(width: 14),
+                                Container(
+                                  width: 120,
+                                  height: 48,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(30),
+                                    border: Border.all(color: Colors.black),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: interesController,
+                                          keyboardType: TextInputType.number,
+                                          textAlign: TextAlign.center,
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            hintText: "0",
+                                          ),
+                                        ),
+                                      ),
+                                      const Text(
+                                        "%",
+                                        style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 35),
+                            campoTitulo("Localizacion del inmueble"),
+                            campoTexto(
+                              localizacionController,
+                              hinIcon: Icons.location_on_outlined,
+                              hint: "Ej: Sevilla",
+                            ),
+                            const SizedBox(height: 35),
+                            campoTitulo("Estado del inmueble"),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                botonSeleccion(
+                                  "Nuevo",
+                                  estadoInmueble == "nuevo",
+                                  () =>
+                                      setState(() => estadoInmueble = "nuevo"),
+                                ),
+                                const SizedBox(width: 14),
+                                botonSeleccion(
+                                  "Segunda mano",
+                                  estadoInmueble == "segunda",
+                                  () => setState(
+                                      () => estadoInmueble = "segunda"),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 50),
+                            Center(
+                              child: SizedBox(
+                                width: 320,
+                                height: 70,
+                                child: ElevatedButton(
+                                  onPressed: calcularHipoteca,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0077CC),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(40)),
+                                  ),
+                                  child: const Text(
+                                    "Calcular",
+                                    style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white),
+                                  ),
                                 ),
                               ),
                             ),
-                            const Text(
-                              "%",
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            const SizedBox(height: 40),
+                            campoTitulo(
+                                "El precio del inmueble (segun la forma de pago) es de:"),
+                            campoTexto(resultadoController, enabled: false),
+                            const SizedBox(height: 30),
+                            Center(
+                              child: SizedBox(
+                                width: 320,
+                                height: 70,
+                                child: OutlinedButton(
+                                  onPressed: borrarDatos,
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(
+                                        color: Colors.red, width: 2),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(40)),
+                                  ),
+                                  child: const Text(
+                                    "Borrar todos los datos",
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.red),
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 35),
-                  campoTitulo("Localización del inmueble"),
-                  campoTexto(
-                    localizacionController,
-                    hinIcon: Icons.location_on_outlined,
-                    hint: "Ej: Sevilla",
-                  ),
-                  const SizedBox(height: 35),
-
-                  campoTitulo("Estado del inmueble"),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      botonSeleccion("Nuevo", estadoInmueble == "nuevo",
-                          () => setState(() => estadoInmueble = "nuevo")),
-                      const SizedBox(width: 14),
-                      botonSeleccion(
-                          "Segunda mano",
-                          estadoInmueble == "segunda",
-                          () => setState(() => estadoInmueble = "segunda")),
-                    ],
-                  ),
-
-                  const SizedBox(height: 50),
-                  Center(
-                    child: SizedBox(
-                      width: 320,
-                      height: 70,
-                      child: ElevatedButton(
-                        onPressed: calcularHipoteca,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0077CC),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(40)),
-                        ),
-                        child: const Text(
-                          "Calcular",
-                          style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-                  campoTitulo(
-                      "El precio del inmueble (según la forma de pago) es de:"),
-                  campoTexto(resultadoController, enabled: false),
-                  const SizedBox(height: 30),
-
-                  Center(
-                    child: SizedBox(
-                      width: 320,
-                      height: 70,
-                      child: OutlinedButton(
-                        onPressed: borrarDatos,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red, width: 2),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(40)),
-                        ),
-                        child: const Text(
-                          "Borrar todos los datos",
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.red),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 60),
-
-                  // 🔥 LOGO CALCNOW IGUAL AL RESTO DE LA APP
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        "CALC",
-                        style: TextStyle(
-                          fontSize: 58,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const Text(
-                        "NOW",
-                        style: TextStyle(
-                          fontSize: 58,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF46899F),
-                        ),
-                      ),
-                      const SizedBox(width: 15),
-                      Image.asset(
-                        'assets/logo_transparente.png',
-                        width: 75,
-                        height: 75,
-                        fit: BoxFit.contain,
+                      const SizedBox(height: 40),
+                      // LOGO CALCNOW IGUAL AL RESTO DE LA APP
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            "CALC",
+                            style: TextStyle(
+                              fontSize: 58,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const Text(
+                            "NOW",
+                            style: TextStyle(
+                              fontSize: 58,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF46899F),
+                            ),
+                          ),
+                          const SizedBox(width: 15),
+                          Image.asset(
+                            'assets/logo_transparente.png',
+                            width: 75,
+                            height: 75,
+                            fit: BoxFit.contain,
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
 
@@ -356,11 +401,13 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
         style: const TextStyle(fontSize: 13, color: Colors.black54),
       );
 
-  Widget campoTexto(TextEditingController controller,
-      {String? hint,
-      String? sufijo,
-      IconData? hinIcon,
-      bool enabled = true}) {
+  Widget campoTexto(
+    TextEditingController controller, {
+    String? hint,
+    String? sufijo,
+    IconData? hinIcon,
+    bool enabled = true,
+  }) {
     return TextField(
       controller: controller,
       enabled: enabled,
@@ -372,7 +419,14 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
         fillColor: Colors.white,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Colors.black, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Color(0xFF0077CC), width: 2),
+        ),
       ),
     );
   }
@@ -386,6 +440,15 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
           color: activo ? const Color(0xFF0077CC) : Colors.white,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color: Colors.black),
+          boxShadow: activo
+              ? const [
+                  BoxShadow(
+                    color: Color(0x330077CC),
+                    blurRadius: 12,
+                    offset: Offset(0, 6),
+                  )
+                ]
+              : null,
         ),
         child: Text(
           texto,
