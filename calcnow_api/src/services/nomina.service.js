@@ -1,5 +1,30 @@
 const NominaModel = require('../models/nomina.model');
 
+// Ajustes simplificados por comunidad autonoma para IRPF (no oficiales).
+const REGION_IRPF_ADJUST = {
+    ANDALUCIA: -0.002,
+    ARAGON: 0.001,
+    ASTURIAS: 0.001,
+    BALEARES: 0.001,
+    CANARIAS: -0.002,
+    CANTABRIA: 0.0,
+    'CASTILLA-LA MANCHA': 0.0,
+    'CASTILLA Y LEON': 0.0,
+    CATALUNA: 0.002,
+    CEUTA: -0.003,
+    'COMUNIDAD VALENCIANA': 0.001,
+    EXTREMADURA: -0.001,
+    GALICIA: 0.0,
+    'LA RIOJA': -0.001,
+    MADRID: -0.003,
+    MURCIA: 0.0,
+    NAVARRA: 0.001,
+    'PAIS VASCO': -0.002,
+    MELILLA: -0.003,
+};
+
+const normalizeRegion = (value) => (value || '').toString().trim().toUpperCase();
+
 // -------------------------------
 // CÁLCULO DE NÓMINA
 // -------------------------------
@@ -13,7 +38,12 @@ exports.ejecutarCalculo = (entrada) => {
 
     const brutoMensual = brutoAnual / pagas;
     const seguridadSocial = brutoMensual * 0.0635;
-    const irpf = brutoMensual * 0.15;
+
+    const regionKey = normalizeRegion(entrada.ubicacion_fiscal);
+    const baseIrpf = 0.15;
+    const ajustado = baseIrpf + (REGION_IRPF_ADJUST[regionKey] || 0);
+    const irpfRate = Math.max(0, ajustado);
+    const irpf = brutoMensual * irpfRate;
     const netoMensual = brutoMensual - seguridadSocial - irpf;
 
     return {

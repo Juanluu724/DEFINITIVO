@@ -11,6 +11,27 @@ class NominaScreen extends StatefulWidget {
 }
 
 class _NominaScreenState extends State<NominaScreen> {
+  final List<String> _comunidades = const [
+    "Andalucia",
+    "Aragon",
+    "Asturias",
+    "Baleares",
+    "Canarias",
+    "Cantabria",
+    "Castilla-La Mancha",
+    "Castilla y Leon",
+    "Cataluna",
+    "Ceuta",
+    "Comunidad Valenciana",
+    "Extremadura",
+    "Galicia",
+    "La Rioja",
+    "Madrid",
+    "Murcia",
+    "Navarra",
+    "Pais Vasco",
+    "Melilla",
+  ];
   final sueldoCtrl = TextEditingController();
   final edadCtrl = TextEditingController();
   final NominaService _service = NominaService();
@@ -19,7 +40,7 @@ class _NominaScreenState extends State<NominaScreen> {
   String pagas = "12";
   String contrato = "General";
   String grupo = "Ingenieros y Licenciados";
-  String comunidad = "Andalucía";
+  String comunidad = "Andalucia";
   String discapacidad = "Sin discapacidad";
   String estadoCivil = "Soltero";
 
@@ -79,6 +100,12 @@ class _NominaScreenState extends State<NominaScreen> {
           double.parse(data["seguridad_social"].toString());
       final pagasInt = int.parse(pagas);
       final netoAnual = netoMensual * pagasInt;
+      final brutoMensualCalc = pagasInt > 0
+          ? (double.tryParse(sueldoCtrl.text) ?? 0) / pagasInt
+          : 0;
+      final tipoRetencionPct = brutoMensualCalc > 0
+          ? (irpfMensual / brutoMensualCalc * 100)
+          : 0;
 
       Navigator.push(
         context,
@@ -90,7 +117,7 @@ class _NominaScreenState extends State<NominaScreen> {
             netoAnual: netoAnual.toStringAsFixed(2),
             retencionAnual:
                 (irpfMensual * pagasInt).toStringAsFixed(2),
-            tipoRetencion: "15%",
+            tipoRetencion: "${tipoRetencionPct.toStringAsFixed(2)}%",
             seguridadSocial:
                 (seguridadMensual * pagasInt).toStringAsFixed(2),
           ),
@@ -178,15 +205,9 @@ class _NominaScreenState extends State<NominaScreen> {
                           child: Column(
                             children: [
                         dropdown(
-                            "Ubicación del domicilio fiscal",
+                            "Ubicacion del domicilio fiscal",
                             comunidad,
-                            [
-                              "Andalucía",
-                              "Madrid",
-                              "Cataluña",
-                              "Valencia",
-                              "País Vasco"
-                            ],
+                            _comunidades,
                             (v) => setState(() => comunidad = v)),
                         dropdown(
                             "Discapacidad",

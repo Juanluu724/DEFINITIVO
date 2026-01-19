@@ -368,13 +368,23 @@ class _DivisasScreenState extends State<DivisasScreen> {
                         Padding(
                           padding: const EdgeInsets.only(top: 32),
                           child: Container(
-                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: Colors.white,
                               border: Border.all(color: Colors.black, width: 1.2),
                             ),
-                            child: const Icon(Icons.swap_horiz),
+                            child: IconButton(
+                              icon: const Icon(Icons.swap_horiz),
+                              splashRadius: 22,
+                              onPressed: () {
+                                setState(() {
+                                  final tmp = _fromCurrency;
+                                  _fromCurrency = _toCurrency;
+                                  _toCurrency = tmp;
+                                });
+                                _calculate();
+                              },
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),

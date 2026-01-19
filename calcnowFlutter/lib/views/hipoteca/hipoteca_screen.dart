@@ -11,16 +11,60 @@ class HipotecaScreen extends StatefulWidget {
 }
 
 class _HipotecaScreenState extends State<HipotecaScreen> {
+  final List<String> _regiones = const [
+    "Andalucia",
+    "Aragon",
+    "Asturias",
+    "Baleares",
+    "Canarias",
+    "Cantabria",
+    "Castilla-La Mancha",
+    "Castilla y Leon",
+    "Cataluna",
+    "Ceuta",
+    "Comunidad Valenciana",
+    "Extremadura",
+    "Galicia",
+    "La Rioja",
+    "Madrid",
+    "Murcia",
+    "Navarra",
+    "Pais Vasco",
+    "Melilla",
+  ];
+
+  final Map<String, double> _regionCostFactor = const {
+    "ANDALUCIA": 0.010,
+    "ARAGON": 0.011,
+    "ASTURIAS": 0.012,
+    "BALEARES": 0.0125,
+    "CANARIAS": 0.009,
+    "CANTABRIA": 0.0105,
+    "CASTILLA-LA MANCHA": 0.0105,
+    "CASTILLA Y LEON": 0.0105,
+    "CATALUNA": 0.012,
+    "CEUTA": 0.0085,
+    "COMUNIDAD VALENCIANA": 0.011,
+    "EXTREMADURA": 0.0095,
+    "GALICIA": 0.0105,
+    "LA RIOJA": 0.0095,
+    "MADRID": 0.009,
+    "MURCIA": 0.0105,
+    "NAVARRA": 0.0105,
+    "PAIS VASCO": 0.0095,
+    "MELILLA": 0.0085,
+  };
+
   final HipotecaService _service = HipotecaService();
   final TextEditingController precioController = TextEditingController();
   final TextEditingController ahorroController = TextEditingController();
   final TextEditingController plazoController = TextEditingController();
   final TextEditingController interesController = TextEditingController();
-  final TextEditingController localizacionController = TextEditingController();
   final TextEditingController resultadoController = TextEditingController();
 
   String tipoInteres = "fijo";
   String estadoInmueble = "nuevo";
+  String region = "Andalucia";
   int? _userId;
   double _lastCuota = 0;
   double _lastTotal = 0;
@@ -57,16 +101,24 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
       return;
     }
 
+    final regionKey = _regionKey(region);
+    final regionFactor = _regionCostFactor[regionKey] ?? 0.01;
+    final impuestosRegion = max(0, precio) * regionFactor;
+    final importeTotal = importe + impuestosRegion;
+
     final interesMensual = interes / 100 / 12;
     final cuotas = plazo * 12;
-    final cuota = importe *
-        interesMensual /
-        (1 - (1 / pow(1 + interesMensual, cuotas)));
+    final cuota = interesMensual == 0
+        ? importeTotal / cuotas
+        : (importeTotal *
+                interesMensual /
+                (1 - (1 / pow(1 + interesMensual, cuotas))));
 
-    resultadoController.text = "${cuota.toStringAsFixed(2)} EUR / mes";
+    resultadoController.text =
+        "${cuota.toStringAsFixed(2)} EUR / mes (impuestos region aprox. ${impuestosRegion.toStringAsFixed(0)} EUR)";
     _lastCuota = cuota;
     _lastTotal = cuota * cuotas;
-    _lastMonto = importe;
+    _lastMonto = importeTotal;
     _lastInteres = interes;
     _lastAnios = plazo;
 
@@ -108,7 +160,6 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
     ahorroController.clear();
     plazoController.clear();
     interesController.clear();
-    localizacionController.clear();
     resultadoController.clear();
     _lastCuota = 0;
     _lastTotal = 0;
@@ -242,12 +293,8 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
                               ],
                             ),
                             const SizedBox(height: 35),
-                            campoTitulo("Localizacion del inmueble"),
-                            campoTexto(
-                              localizacionController,
-                              hinIcon: Icons.location_on_outlined,
-                              hint: "Ej: Sevilla",
-                            ),
+                            campoTitulo("Region del inmueble"),
+                            _dropdownRegion(),
                             const SizedBox(height: 35),
                             campoTitulo("Estado del inmueble"),
                             const SizedBox(height: 12),
@@ -400,6 +447,34 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
         texto,
         style: const TextStyle(fontSize: 13, color: Colors.black54),
       );
+
+  String _regionKey(String value) => value.toUpperCase();
+
+  Widget _dropdownRegion() {
+    return DropdownButtonFormField<String>(
+      value: region,
+      items: _regiones
+          .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+          .toList(),
+      onChanged: (v) => setState(() => region = v ?? region),
+      decoration: InputDecoration(
+        hintText: "Selecciona region",
+        prefixIcon: const Icon(Icons.location_on_outlined),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Colors.black, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide: const BorderSide(color: Color(0xFF0077CC), width: 2),
+        ),
+      ),
+    );
+  }
 
   Widget campoTexto(
     TextEditingController controller, {

@@ -10,7 +10,7 @@ class NominaViewModel extends ChangeNotifier {
   String pagas = "12";
   String contrato = "General";
   String grupo = "Ingenieros y Licenciados";
-  String comunidad = "Andalucía";
+  String comunidad = "Andalucia";
   String discapacidad = "Sin discapacidad";
   String estadoCivil = "Soltero";
   bool hijos = false;

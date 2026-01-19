@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+
+// Carga .env siempre desde la raíz del proyecto, sin depender del cwd
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const app = express();
 
