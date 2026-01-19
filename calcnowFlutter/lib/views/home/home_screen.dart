@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/bi_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,6 +14,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool biEnabled = BiService.biKey.isNotEmpty;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -85,6 +87,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         description: "Simula tu cuota mensual en\nsegundos.",
                         onTap: () => Navigator.pushNamed(context, '/hipoteca'),
                       ),
+                      if (biEnabled)
+                        _buildCard(
+                          title: "Inteligencia de mercado",
+                          description:
+                              "KPIs y tendencias\ncon datos reales.",
+                          onTap: () => Navigator.pushNamed(context, '/bi'),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 130),

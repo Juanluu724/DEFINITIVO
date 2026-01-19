@@ -1,9 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-
-// Carga .env siempre desde la raíz del proyecto, sin depender del cwd
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+require('dotenv').config();
 
 const app = express();
 
@@ -12,9 +9,10 @@ app.use(express.json());
 
 // RUTAS
 app.use('/api/nomina', require('./routes/nomina.routes'));
-app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/divisas', require('./routes/divisas.routes'));
 app.use('/api/hipoteca', require('./routes/hipoteca.routes'));
+app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/bi', require('./routes/bi.routes'));
 
 // SERVIDOR
 const PORT = process.env.PORT || 3000;

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'views/auth/login_screen.dart';
 import 'views/auth/register_screen.dart';
 import 'views/home/home_screen.dart';
+import 'views/bi/bi_screen.dart';
 
 // -------------------- CALCULADORAS --------------------
 import 'views/nomina/nomina_screen.dart';
@@ -42,7 +43,9 @@ class CalcNowApp extends StatelessWidget {
         // --------- CALCULADORAS ---------
         '/nomina': (context) => NominaScreen(),
         '/hipoteca': (context) => const HipotecaScreen(),
-        '/divisas': (context) => const DivisasScreen(),},
+        '/divisas': (context) => const DivisasScreen(),
+        '/bi': (context) => const BiScreen(),
+      },
     );
   }
 }
