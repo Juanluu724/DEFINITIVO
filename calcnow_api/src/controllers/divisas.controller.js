@@ -91,8 +91,26 @@ async function fetchFallbackRates(base, targets) {
         throw new Error('Respuesta inesperada del fallback de tasas.');
     }
 
+    const normalizedRates = {};
+    Object.entries(rates).forEach(([code, value]) => {
+        const upper = String(code).toUpperCase();
+        const number = typeof value === 'number' ? value : Number(value);
+        if (upper && !Number.isNaN(number)) {
+            normalizedRates[upper] = number;
+        }
+    });
+
+    normalizedRates[base] = 1;
+
+    const filteredRates = {};
+    [base, ...targets].forEach((code) => {
+        if (Object.prototype.hasOwnProperty.call(normalizedRates, code)) {
+            filteredRates[code] = normalizedRates[code];
+        }
+    });
+
     const finalDate = date ? new Date(date).toISOString() : new Date().toISOString();
-    return { rates: { [base]: 1, ...rates }, date: finalDate, provider: 'fallback' };
+    return { rates: filteredRates, date: finalDate, provider: 'fallback' };
 }
 
 function isSimulated(rates, base) {
