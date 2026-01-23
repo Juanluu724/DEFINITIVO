@@ -70,7 +70,9 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
   double _lastTotal = 0;
   double _lastMonto = 0;
   double _lastInteres = 0;
+  double _lastImpuestos = 0;
   int _lastAnios = 0;
+  int? _lastRefId;
 
   @override
   void initState() {
@@ -116,11 +118,15 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
 
     resultadoController.text =
         "${cuota.toStringAsFixed(2)} EUR / mes (impuestos region aprox. ${impuestosRegion.toStringAsFixed(0)} EUR)";
-    _lastCuota = cuota;
-    _lastTotal = cuota * cuotas;
-    _lastMonto = importeTotal;
-    _lastInteres = interes;
-    _lastAnios = plazo;
+    setState(() {
+      _lastCuota = cuota;
+      _lastTotal = cuota * cuotas;
+      _lastMonto = importeTotal;
+      _lastInteres = interes;
+      _lastImpuestos = impuestosRegion;
+      _lastAnios = plazo;
+      _lastRefId = null;
+    });
 
     _guardarSiAplica();
   }
@@ -143,6 +149,8 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
         totalPagado: _lastTotal,
       );
       final id = response["id_hipoteca"];
+      if (!mounted) return;
+      setState(() => _lastRefId = id is int ? id : int.tryParse("$id"));
       _show("Guardado. Ref: $id");
     } catch (e) {
       _show("No se pudo guardar: $e");
@@ -165,7 +173,9 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
     _lastTotal = 0;
     _lastMonto = 0;
     _lastInteres = 0;
+    _lastImpuestos = 0;
     _lastAnios = 0;
+    _lastRefId = null;
 
     setState(() {
       tipoInteres = "fijo";
@@ -341,7 +351,7 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
                             const SizedBox(height: 40),
                             campoTitulo(
                                 "El precio del inmueble (segun la forma de pago) es de:"),
-                            campoTexto(resultadoController, enabled: false),
+                            _resultadoHipoteca(),
                             const SizedBox(height: 30),
                             Center(
                               child: SizedBox(
@@ -531,6 +541,106 @@ class _HipotecaScreenState extends State<HipotecaScreen> {
               color: activo ? Colors.white : Colors.black,
               fontWeight: FontWeight.w600),
         ),
+      ),
+    );
+  }
+
+  Widget _resultadoHipoteca() {
+    final hasResult = _lastCuota > 0;
+    final cuotaText =
+        hasResult ? "${_lastCuota.toStringAsFixed(2)} EUR / mes" : "-";
+    final impuestosText =
+        hasResult ? "${_lastImpuestos.toStringAsFixed(0)} EUR" : "-";
+    final totalText =
+        hasResult ? "${_lastTotal.toStringAsFixed(0)} EUR" : "-";
+    final refText = _lastRefId != null ? "Ref: $_lastRefId" : "Ref: -";
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6FBFF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF0077CC), width: 1.4),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x140077CC),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Cuota mensual estimada",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            cuotaText,
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0A2A43),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _infoPill("Impuestos region", impuestosText),
+              _infoPill("Total pagado", totalText),
+              _infoPill("Referencia", refText),
+            ],
+          ),
+          if (!hasResult) ...[
+            const SizedBox(height: 12),
+            const Text(
+              "Completa los datos y pulsa Calcular.",
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _infoPill(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: const Color(0x22000000)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: Colors.black,
+            ),
+          ),
+        ],
       ),
     );
   }

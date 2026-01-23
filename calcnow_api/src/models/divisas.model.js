@@ -2,7 +2,7 @@ const db = require('../database/db');
 
 class DivisasModel {
 
-    static async guardar({ id_usuario, cantidad, resultado, origen, destino }) {
+    static async guardar({ cantidad, resultado, origen, destino }) {
         try {
             // 1. Busca ID moneda Origen (Si no existe, la crea)
             let [resOrigen] = await db.query("SELECT id_divisa FROM DIVISA WHERE simbolo = ?", [origen]);
@@ -19,10 +19,10 @@ class DivisasModel {
             // 4. FINALMENTE GUARDAMOS LA OPERACIÓN
             const query = `
                 INSERT INTO CALCULO_DIVISA 
-                (datos_entrada, resultado, id_divisa_origen, id_divisa_destino, id_tasa_cambio, id_usuario)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (datos_entrada, resultado, id_divisa_origen, id_divisa_destino, id_tasa_cambio)
+                VALUES (?, ?, ?, ?, ?)
             `;
-            const [result] = await db.query(query, [cantidad, resultado, idOrigen, idDestino, idTasa, id_usuario]);
+            const [result] = await db.query(query, [cantidad, resultado, idOrigen, idDestino, idTasa]);
             
             return result.insertId;
         } catch (error) {

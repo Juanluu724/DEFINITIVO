@@ -1,34 +1,34 @@
 const BiModel = require('../models/bi.model');
 
-exports.kpisGlobales = async() => {
-    return BiModel.kpisGlobales();
+exports.kpisGlobales = async(filters) => {
+    return BiModel.kpisGlobales(filters);
 };
 
-exports.popularidadModulos = async() => {
-    return BiModel.popularidadModulos();
+exports.popularidadModulos = async(filters) => {
+    return BiModel.popularidadModulos(filters);
 };
 
-exports.hipotecasPorProvincia = async() => {
-    return BiModel.hipotecasPorProvincia();
+exports.hipotecasPorProvincia = async(filters) => {
+    return BiModel.hipotecasPorProvincia(filters);
 };
 
-exports.nominasPorProvincia = async() => {
-    return BiModel.nominasPorProvincia();
+exports.nominasPorProvincia = async(filters) => {
+    return BiModel.nominasPorProvincia(filters);
 };
 
-exports.divisasPorMoneda = async() => {
-    return BiModel.divisasPorMoneda();
+exports.divisasPorMoneda = async(filters) => {
+    return BiModel.divisasPorMoneda(filters);
 };
 
-exports.topHipotecaProvincia = async() => {
-    return BiModel.topHipotecaProvincia();
+exports.topHipotecaProvincia = async(filters) => {
+    return BiModel.topHipotecaProvincia(filters);
 };
 
-exports.topDivisa = async() => {
-    return BiModel.topDivisa();
+exports.topDivisa = async(filters) => {
+    return BiModel.topDivisa(filters);
 };
 
-exports.getAll = async() => {
+exports.getAll = async(filters) => {
     const [
         kpis,
         popularidad,
@@ -38,13 +38,13 @@ exports.getAll = async() => {
         topHipoteca,
         topDivisa
     ] = await Promise.all([
-        BiModel.kpisGlobales(),
-        BiModel.popularidadModulos(),
-        BiModel.hipotecasPorProvincia(),
-        BiModel.nominasPorProvincia(),
-        BiModel.divisasPorMoneda(),
-        BiModel.topHipotecaProvincia(),
-        BiModel.topDivisa()
+        BiModel.kpisGlobales(filters),
+        BiModel.popularidadModulos(filters),
+        BiModel.hipotecasPorProvincia(filters),
+        BiModel.nominasPorProvincia(filters),
+        BiModel.divisasPorMoneda(filters),
+        BiModel.topHipotecaProvincia(filters),
+        BiModel.topDivisa(filters)
     ]);
 
     return {
