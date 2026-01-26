@@ -1,10 +1,24 @@
+const jwt = require('jsonwebtoken');
 const AuthModel = require('../models/auth.model');
 
 exports.login = async(email, password) => {
     try {
         const user = await AuthModel.findByCredentials(email, password);
         if (user) {
-            return { success: true, user, message: "Login correcto" };
+            const { contrasena, ...safeUser } = user;
+            const payload = {
+                id: user.id_usuario,
+                email: user.correo_electronico,
+                role: user.es_admin ? 'admin' : 'user'
+            };
+            const token = jwt.sign(payload, process.env.JWT_SECRET || 'calcnow_dev_secret', { expiresIn: '12h' });
+
+            return {
+                success: true,
+                user: { ...safeUser, es_admin: !!user.es_admin },
+                token,
+                message: "Login correcto"
+            };
         }
         return { success: false, message: "Credenciales incorrectas" };
     } catch (error) {

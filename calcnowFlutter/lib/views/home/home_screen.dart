@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/bi_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,10 +11,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _hovered = ""; // Para detectar hover
   String _pressed = ""; // Para animacion de rebote al hacer clic
+  bool _biEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiAccess();
+  }
+
+  Future<void> _loadBiAccess() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _biEnabled = prefs.getBool('is_admin') ?? false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bool biEnabled = BiService.biKey.isNotEmpty;
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -87,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         description: "Simula tu cuota mensual en\nsegundos.",
                         onTap: () => Navigator.pushNamed(context, '/hipoteca'),
                       ),
-                      if (biEnabled)
+                      if (_biEnabled)
                         _buildCard(
                           title: "Inteligencia de mercado",
                           description:

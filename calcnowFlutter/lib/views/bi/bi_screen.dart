@@ -3,6 +3,7 @@ import '../../services/bi_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/pdf_download.dart'
     if (dart.library.html) '../../utils/pdf_download_web.dart';
 
@@ -19,6 +20,8 @@ class _BiScreenState extends State<BiScreen> {
   bool _loading = true;
   String? _error;
   bool _exporting = false;
+  bool _isAdmin = false;
+  bool _sessionChecked = false;
 
   Map<String, dynamic> _kpis = {};
   List<Map<String, dynamic>> _popularidad = [];
@@ -31,10 +34,50 @@ class _BiScreenState extends State<BiScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _initAccess();
+  }
+
+  Future<void> _initAccess() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    final isAdmin = prefs.getBool('is_admin') ?? false;
+    if (!mounted) return;
+
+    if (!isAdmin) {
+      setState(() {
+        _isAdmin = false;
+        _sessionChecked = true;
+        _loading = false;
+        _error = 'Acceso solo para administradores';
+      });
+      return;
+    }
+
+    if (token == null || token.isEmpty) {
+      setState(() {
+        _isAdmin = true;
+        _sessionChecked = true;
+        _loading = false;
+        _error = 'Inicia sesion nuevamente para acceder al BI';
+      });
+      return;
+    }
+
+    setState(() {
+      _isAdmin = true;
+      _sessionChecked = true;
+    });
+    await _loadData();
   }
 
   Future<void> _loadData() async {
+    if (!_isAdmin) {
+      setState(() {
+        _error = 'Acceso solo para administradores';
+        _loading = false;
+      });
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -119,14 +162,21 @@ class _BiScreenState extends State<BiScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (BiService.biKey.isEmpty) {
+    if (!_sessionChecked) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFEFF3F8),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!_isAdmin) {
       return Scaffold(
         backgroundColor: const Color(0xFFEFF3F8),
         appBar: AppBar(
           title: const Text('Inteligencia de mercado'),
         ),
         body: const Center(
-          child: Text('Acceso restringido'),
+          child: Text('Acceso restringido a administradores'),
         ),
       );
     }

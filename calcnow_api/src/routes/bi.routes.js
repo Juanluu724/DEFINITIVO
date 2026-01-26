@@ -1,20 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const biController = require('../controllers/bi.controller');
+const { requireAuth, requireAdmin } = require('../middlewares/auth.middleware');
 
-const requireBiKey = (req, res, next) => {
-    const expected = process.env.BI_ADMIN_KEY;
-    const provided = req.header('x-bi-key');
-    if (!expected) {
-        return res.status(500).json({ success: false, error: 'BI_ADMIN_KEY no configurada' });
-    }
-    if (!provided || provided !== expected) {
-        return res.status(401).json({ success: false, error: 'No autorizado' });
-    }
-    return next();
-};
-
-router.use(requireBiKey);
+router.use(requireAuth);
+router.use(requireAdmin);
 
 router.get('/kpis', biController.kpisGlobales);
 router.get('/pie', biController.popularidadModulos);
