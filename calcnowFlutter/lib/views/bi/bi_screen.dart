@@ -30,6 +30,8 @@ class _BiScreenState extends State<BiScreen> {
   List<Map<String, dynamic>> _divisas = [];
   Map<String, dynamic> _topHipoteca = {};
   Map<String, dynamic> _topDivisa = {};
+  DateTime? _fromDate;
+  DateTime? _toDate;
 
   @override
   void initState() {
@@ -84,23 +86,14 @@ class _BiScreenState extends State<BiScreen> {
     });
 
     try {
-      final results = await Future.wait([
-        _service.getKpis(),
-        _service.getPopularidad(),
-        _service.getHipotecasPorProvincia(),
-        _service.getNominasPorProvincia(),
-        _service.getDivisasPorMoneda(),
-        _service.getTopHipoteca(),
-        _service.getTopDivisa(),
-      ]);
-
-      final kpis = _toMaps(results[0]);
-      final popularidad = _toMaps(results[1]);
-      final hipotecas = _toMaps(results[2]);
-      final nominas = _toMaps(results[3]);
-      final divisas = _toMaps(results[4]);
-      final topHipoteca = _toMaps(results[5]);
-      final topDivisa = _toMaps(results[6]);
+      final data = await _service.getAll(from: _fromDate, to: _toDate);
+      final kpis = _toMaps(data['kpis'] ?? []);
+      final popularidad = _toMaps(data['popularidad'] ?? []);
+      final hipotecas = _toMaps(data['hipotecas'] ?? []);
+      final nominas = _toMaps(data['nominas'] ?? []);
+      final divisas = _toMaps(data['divisas'] ?? []);
+      final topHipoteca = _toMaps(data['topHipoteca'] ?? []);
+      final topDivisa = _toMaps(data['topDivisa'] ?? []);
 
       setState(() {
         _kpis = kpis.isNotEmpty ? kpis.first : {};
@@ -131,14 +124,14 @@ class _BiScreenState extends State<BiScreen> {
     setState(() => _exporting = true);
     try {
       if (kIsWeb) {
-        final bytes = await _service.getPdf();
+        final bytes = await _service.getPdf(from: _fromDate, to: _toDate);
         await downloadPdfBytes(bytes);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Descarga iniciada en el navegador')),
         );
       } else {
-        final bytes = await _service.getPdf();
+        final bytes = await _service.getPdf(from: _fromDate, to: _toDate);
         final dir = await getApplicationDocumentsDirectory();
         final file = File('${dir.path}/calcnow_bi.pdf');
         await file.writeAsBytes(bytes, flush: true);
@@ -209,6 +202,8 @@ class _BiScreenState extends State<BiScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        _filterRow(),
+                        const SizedBox(height: 16),
                         ElevatedButton.icon(
                           onPressed: _exporting ? null : _exportPdf,
                           icon: _exporting
@@ -241,22 +236,34 @@ class _BiScreenState extends State<BiScreen> {
                         _kpiGrid(_kpis),
                         const SizedBox(height: 24),
                         _sectionTitle('Popularidad de modulos'),
-                        _listSection(_popularidad),
+                        _listSection(_popularidad,
+                            emptyMessage:
+                                'Aun no hay informacion suficiente para generar estadisticas.'),
                         const SizedBox(height: 24),
                         _sectionTitle('Hipotecas por provincia'),
-                        _listSection(_hipotecas),
+                        _listSection(_hipotecas,
+                            emptyMessage:
+                                'Aun no hay informacion suficiente para generar estadisticas.'),
                         const SizedBox(height: 24),
                         _sectionTitle('Nominas por provincia'),
-                        _listSection(_nominas),
+                        _listSection(_nominas,
+                            emptyMessage:
+                                'Aun no hay informacion suficiente para generar estadisticas.'),
                         const SizedBox(height: 24),
                         _sectionTitle('Divisas por moneda'),
-                        _listSection(_divisas),
+                        _listSection(_divisas,
+                            emptyMessage:
+                                'Aun no hay informacion suficiente para generar estadisticas.'),
                         const SizedBox(height: 24),
                         _sectionTitle('Top hipoteca'),
-                        _keyValueCard(_topHipoteca),
+                        _keyValueCard(_topHipoteca,
+                            emptyMessage:
+                                'Aun no hay informacion suficiente para generar estadisticas.'),
                         const SizedBox(height: 24),
                         _sectionTitle('Top divisa'),
-                        _keyValueCard(_topDivisa),
+                        _keyValueCard(_topDivisa,
+                            emptyMessage:
+                                'Aun no hay informacion suficiente para generar estadisticas.'),
                       ],
                     ),
                   ),
@@ -275,7 +282,7 @@ class _BiScreenState extends State<BiScreen> {
     if (data.isEmpty) {
       return const Padding(
         padding: EdgeInsets.only(top: 8),
-        child: Text('Sin datos'),
+        child: Text('Aun no hay informacion suficiente para generar estadisticas.'),
       );
     }
 
@@ -315,11 +322,12 @@ class _BiScreenState extends State<BiScreen> {
     );
   }
 
-  Widget _listSection(List<Map<String, dynamic>> data) {
-    if (data.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 8),
-        child: Text('Sin datos'),
+  Widget _listSection(List<Map<String, dynamic>> data,
+      {String emptyMessage = 'Aun no hay informacion suficiente.'}) {
+    if (data.isEmpty || !_hasMeaningfulData(data)) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(emptyMessage),
       );
     }
 
@@ -347,13 +355,17 @@ class _BiScreenState extends State<BiScreen> {
         children: [
           Expanded(
             child: Text(
-              first == null ? '-' : '${first.key}: ${first.value}',
+              first == null
+                  ? '-'
+                  : '${first.key}: ${_formatValue(first.key, first.value)}',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
           Expanded(
             child: Text(
-              second == null ? '' : '${second.key}: ${second.value}',
+              second == null
+                  ? ''
+                  : '${second.key}: ${_formatValue(second.key, second.value)}',
               textAlign: TextAlign.right,
             ),
           ),
@@ -362,11 +374,12 @@ class _BiScreenState extends State<BiScreen> {
     );
   }
 
-  Widget _keyValueCard(Map<String, dynamic> row) {
+  Widget _keyValueCard(Map<String, dynamic> row,
+      {String emptyMessage = 'Aun no hay informacion suficiente.'}) {
     if (row.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.only(top: 8),
-        child: Text('Sin datos'),
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(emptyMessage),
       );
     }
 
@@ -387,11 +400,89 @@ class _BiScreenState extends State<BiScreen> {
             .map(
               (e) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
-                child: Text('${e.key}: ${e.value}'),
+                child: Text('${e.key}: ${_formatValue(e.key, e.value)}'),
               ),
             )
             .toList(),
       ),
     );
+  }
+
+  Widget _filterRow() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _dateButton('Desde', _fromDate, (picked) {
+          setState(() => _fromDate = picked);
+          _loadData();
+        }),
+        _dateButton('Hasta', _toDate, (picked) {
+          setState(() => _toDate = picked);
+          _loadData();
+        }),
+        OutlinedButton(
+          onPressed: (_fromDate == null && _toDate == null)
+              ? null
+              : () {
+                  setState(() {
+                    _fromDate = null;
+                    _toDate = null;
+                  });
+                  _loadData();
+                },
+          child: const Text('Limpiar'),
+        ),
+      ],
+    );
+  }
+
+  Widget _dateButton(
+      String label, DateTime? value, ValueChanged<DateTime> onPicked) {
+    final text = value == null ? label : '${label}: ${_formatDate(value)}';
+    return OutlinedButton(
+      onPressed: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: value ?? DateTime.now(),
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
+        );
+        if (picked != null) {
+          onPicked(picked);
+        }
+      },
+      child: Text(text),
+    );
+  }
+
+  String _formatDate(DateTime value) {
+    final y = value.year.toString().padLeft(4, '0');
+    final m = value.month.toString().padLeft(2, '0');
+    final d = value.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  bool _hasMeaningfulData(List<Map<String, dynamic>> data) {
+    for (final row in data) {
+      for (final value in row.values) {
+        final n = num.tryParse(value.toString());
+        if (n != null && n > 0) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  String _formatValue(String key, dynamic value) {
+    if (value == null || value.toString().toLowerCase() == 'null') {
+      if (key.toLowerCase().contains('provincia')) {
+        return 'Provincia no especificada';
+      }
+      return 'No especificado';
+    }
+    return value.toString();
   }
 }

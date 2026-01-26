@@ -13,6 +13,7 @@ router.get('/geo/nom', biController.nominasPorProvincia);
 router.get('/divisas', biController.divisasPorMoneda);
 router.get('/top/hip', biController.topHipotecaProvincia);
 router.get('/top/divisa', biController.topDivisa);
+router.get('/all', biController.all);
 router.get('/pdf', biController.pdf);
 
 module.exports = router;

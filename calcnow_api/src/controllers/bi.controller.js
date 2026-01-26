@@ -1,9 +1,15 @@
 const biService = require('../services/bi.service');
 const PDFDocument = require('pdfkit');
 
+const getFilters = (req) => {
+    const from = req.query.from ? String(req.query.from) : null;
+    const to = req.query.to ? String(req.query.to) : null;
+    return { from, to };
+};
+
 exports.kpisGlobales = async(req, res) => {
     try {
-        const data = await biService.kpisGlobales();
+        const data = await biService.kpisGlobales(getFilters(req));
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -12,7 +18,7 @@ exports.kpisGlobales = async(req, res) => {
 
 exports.popularidadModulos = async(req, res) => {
     try {
-        const data = await biService.popularidadModulos();
+        const data = await biService.popularidadModulos(getFilters(req));
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -21,7 +27,7 @@ exports.popularidadModulos = async(req, res) => {
 
 exports.hipotecasPorProvincia = async(req, res) => {
     try {
-        const data = await biService.hipotecasPorProvincia();
+        const data = await biService.hipotecasPorProvincia(getFilters(req));
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -30,7 +36,7 @@ exports.hipotecasPorProvincia = async(req, res) => {
 
 exports.nominasPorProvincia = async(req, res) => {
     try {
-        const data = await biService.nominasPorProvincia();
+        const data = await biService.nominasPorProvincia(getFilters(req));
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -39,7 +45,7 @@ exports.nominasPorProvincia = async(req, res) => {
 
 exports.divisasPorMoneda = async(req, res) => {
     try {
-        const data = await biService.divisasPorMoneda();
+        const data = await biService.divisasPorMoneda(getFilters(req));
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -48,7 +54,7 @@ exports.divisasPorMoneda = async(req, res) => {
 
 exports.topHipotecaProvincia = async(req, res) => {
     try {
-        const data = await biService.topHipotecaProvincia();
+        const data = await biService.topHipotecaProvincia(getFilters(req));
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -57,7 +63,16 @@ exports.topHipotecaProvincia = async(req, res) => {
 
 exports.topDivisa = async(req, res) => {
     try {
-        const data = await biService.topDivisa();
+        const data = await biService.topDivisa(getFilters(req));
+        res.status(200).json({ success: true, data });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+exports.all = async(req, res) => {
+    try {
+        const data = await biService.getAll(getFilters(req));
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -66,7 +81,7 @@ exports.topDivisa = async(req, res) => {
 
 exports.pdf = async(req, res) => {
     try {
-        const data = await biService.getAll();
+        const data = await biService.getAll(getFilters(req));
         const doc = new PDFDocument({ margin: 40, size: 'A4' });
 
         res.setHeader('Content-Type', 'application/pdf');
@@ -83,12 +98,23 @@ exports.pdf = async(req, res) => {
             return Number.isFinite(n) ? n : 0;
         };
 
-        const pickLabelValue = (row) => {
+        const normalizeLabel = (value, key, fallback) => {
+            if (value === null || value === undefined || value === '' || String(value).toLowerCase() === 'null') {
+                if (key && String(key).toLowerCase().includes('provincia')) {
+                    return 'Provincia no especificada';
+                }
+                return fallback || 'No especificado';
+            }
+            return String(value);
+        };
+
+        const pickLabelValue = (row, fallback) => {
             if (!row || typeof row !== 'object') {
-                return { label: 'N/A', value: 0 };
+                return { label: fallback || 'No especificado', value: 0 };
             }
             const entries = Object.entries(row);
-            const label = entries[0] ? String(entries[0][1]) : 'N/A';
+            const labelKey = entries[0] ? entries[0][0] : null;
+            const label = entries[0] ? normalizeLabel(entries[0][1], labelKey, fallback) : (fallback || 'No especificado');
             const value = entries[1] ? safeNumber(entries[1][1]) : 0;
             return { label, value };
         };
@@ -142,10 +168,19 @@ exports.pdf = async(req, res) => {
             y += cardHeight + 12;
         };
 
+        const drawNoData = (x, yTop) => {
+            doc.fillColor('#6B7280').fontSize(10).text(
+                'Aun no hay informacion suficiente para generar estadisticas.',
+                x,
+                yTop + 12
+            );
+        };
+
         const drawPie = (items, x, yTop, width, height) => {
             const total = items.reduce((acc, item) => acc + item.value, 0);
-            if (items.length === 0 || total === 0) {
-                doc.fillColor('#9CA3AF').fontSize(10).text('Sin datos', x, yTop + 12);
+            const hasMeaningful = items.some((item) => item.value > 0) && total > 0;
+            if (items.length === 0 || !hasMeaningful) {
+                drawNoData(x, yTop);
                 return;
             }
 
@@ -189,11 +224,16 @@ exports.pdf = async(req, res) => {
 
         const drawBars = (items, x, yTop, width, height) => {
             if (items.length === 0) {
-                doc.fillColor('#9CA3AF').fontSize(10).text('Sin datos', x, yTop + 12);
+                drawNoData(x, yTop);
                 return;
             }
 
             const total = items.reduce((acc, item) => acc + item.value, 0);
+            const hasMeaningful = items.some((item) => item.value > 0) && total > 0;
+            if (!hasMeaningful) {
+                drawNoData(x, yTop);
+                return;
+            }
             const barAreaWidth = width - 160;
             let rowY = yTop + 6;
 
@@ -231,7 +271,7 @@ exports.pdf = async(req, res) => {
         drawKpiRow('Usuarios registrados', usuariosRegistrados, 'Usuarios activos', usuariosActivos);
 
         drawCard('Uso total de la App (%)', 150, (x, yTop, width, height) => {
-            drawPie(data.popularidad.map(pickLabelValue), x, yTop, width, height);
+            drawPie(data.popularidad.map((row) => pickLabelValue(row)), x, yTop, width, height);
         });
 
         drawCard('Usuarios registrados vs usuarios reales', 110, (x, yTop, width, height) => {
@@ -253,19 +293,19 @@ exports.pdf = async(req, res) => {
         drawSectionTitle('Segmentacion');
 
         drawBand();
-        const hipotecasItems = data.hipotecas.map(pickLabelValue);
+        const hipotecasItems = data.hipotecas.map((row) => pickLabelValue(row, 'Provincia no especificada'));
         const hipotecasHeight = Math.min(200, Math.max(90, 40 + hipotecasItems.length * 14));
         drawCard('Hipotecas por provincia (%)', hipotecasHeight, (x, yTop, width, height) => {
             drawBars(hipotecasItems, x, yTop, width, height);
         });
 
-        const nominasItems = data.nominas.map(pickLabelValue);
+        const nominasItems = data.nominas.map((row) => pickLabelValue(row, 'Provincia no especificada'));
         const nominasHeight = Math.min(200, Math.max(90, 40 + nominasItems.length * 14));
         drawCard('Nominas por provincia (%)', nominasHeight, (x, yTop, width, height) => {
             drawBars(nominasItems, x, yTop, width, height);
         });
 
-        const divisasItems = data.divisas.map(pickLabelValue);
+        const divisasItems = data.divisas.map((row) => pickLabelValue(row));
         const divisasHeight = Math.min(200, Math.max(90, 40 + divisasItems.length * 14));
         drawCard('Divisas por moneda (%)', divisasHeight, (x, yTop, width, height) => {
             drawBars(divisasItems, x, yTop, width, height);
@@ -278,9 +318,12 @@ exports.pdf = async(req, res) => {
 
         const topHipoteca = data.topHipoteca && data.topHipoteca[0] ? data.topHipoteca[0] : {};
         const topDivisa = data.topDivisa && data.topDivisa[0] ? data.topDivisa[0] : {};
-        drawCard('Resumen ejecutivo', 110, (x, yTop) => {
+        const estadoUso = usuariosActivos === 0
+            ? 'Estado de uso: fase inicial (sin usuarios activos).'
+            : 'Estado de uso: en crecimiento con actividad registrada.';
+        drawCard('Resumen ejecutivo', 130, (x, yTop) => {
             doc.fillColor('#111827').fontSize(11).text(
-                `Lugar hipotecas mas buscado: ${pickLabelValue(topHipoteca).label}`,
+                `Lugar hipotecas mas buscado: ${pickLabelValue(topHipoteca, 'Provincia no especificada').label}`,
                 x,
                 yTop
             );
@@ -298,6 +341,11 @@ exports.pdf = async(req, res) => {
                 `Usuarios que lo han usado: ${usuariosActivos}`,
                 x,
                 yTop + 54
+            );
+            doc.fillColor('#111827').fontSize(11).text(
+                estadoUso,
+                x,
+                yTop + 72
             );
         });
 

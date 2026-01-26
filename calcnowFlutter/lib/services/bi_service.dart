@@ -16,6 +16,25 @@ class BiService {
     return {'Authorization': 'Bearer $token'};
   }
 
+  Future<Map<String, dynamic>> getAll({DateTime? from, DateTime? to}) async {
+    final params = <String, String>{};
+    if (from != null) params['from'] = _dateParam(from);
+    if (to != null) params['to'] = _dateParam(to);
+    final uri = Uri.parse('$baseUrl/api/bi/all')
+        .replace(queryParameters: params.isEmpty ? null : params);
+    final headers = await _headers();
+    final response =
+        await http.get(uri, headers: headers).timeout(const Duration(seconds: 20));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Error backend (${response.statusCode})');
+    }
+    final decoded = jsonDecode(response.body);
+    if (decoded is Map<String, dynamic> && decoded['success'] == true) {
+      return Map<String, dynamic>.from(decoded['data'] as Map);
+    }
+    throw Exception('Formato de respuesta no valido');
+  }
+
   Future<List<dynamic>> getKpis() => _getList('/api/bi/kpis');
   Future<List<dynamic>> getPopularidad() => _getList('/api/bi/pie');
   Future<List<dynamic>> getHipotecasPorProvincia() => _getList('/api/bi/geo/hip');
@@ -23,8 +42,12 @@ class BiService {
   Future<List<dynamic>> getDivisasPorMoneda() => _getList('/api/bi/divisas');
   Future<List<dynamic>> getTopHipoteca() => _getList('/api/bi/top/hip');
   Future<List<dynamic>> getTopDivisa() => _getList('/api/bi/top/divisa');
-  Future<Uint8List> getPdf() async {
-    final uri = Uri.parse('$baseUrl/api/bi/pdf');
+  Future<Uint8List> getPdf({DateTime? from, DateTime? to}) async {
+    final params = <String, String>{};
+    if (from != null) params['from'] = _dateParam(from);
+    if (to != null) params['to'] = _dateParam(to);
+    final uri = Uri.parse('$baseUrl/api/bi/pdf')
+        .replace(queryParameters: params.isEmpty ? null : params);
     final headers = await _headers();
     final response =
         await http.get(uri, headers: headers).timeout(const Duration(seconds: 20));
@@ -54,5 +77,12 @@ class BiService {
       }
     }
     throw Exception('Formato de respuesta no valido');
+  }
+
+  String _dateParam(DateTime value) {
+    final v = DateTime(value.year, value.month, value.day);
+    return '${v.year.toString().padLeft(4, '0')}-'
+        '${v.month.toString().padLeft(2, '0')}-'
+        '${v.day.toString().padLeft(2, '0')}';
   }
 }
