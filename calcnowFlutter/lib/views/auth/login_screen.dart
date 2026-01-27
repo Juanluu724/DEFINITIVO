@@ -34,6 +34,11 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = response["user"];
       if (user is Map && user["id_usuario"] != null) {
         await prefs.setInt('user_id', user["id_usuario"]);
+        await prefs.setBool('is_admin', _asBool(user["es_admin"]));
+      }
+      final token = response["token"];
+      if (token is String && token.isNotEmpty) {
+        await prefs.setString('auth_token', token);
       }
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
@@ -47,6 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) return value.toLowerCase() == 'true';
+    return false;
   }
 
   @override

@@ -19,6 +19,15 @@ class AuthViewModel extends ChangeNotifier {
     if (response["success"] == true || response["ok"] == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('logged', true);
+      final user = response["user"];
+      if (user is Map && user["id_usuario"] != null) {
+        await prefs.setInt('user_id', user["id_usuario"]);
+        await prefs.setBool('is_admin', _asBool(user["es_admin"]));
+      }
+      final token = response["token"];
+      if (token is String && token.isNotEmpty) {
+        await prefs.setString('auth_token', token);
+      }
     }
     return response;
   }
@@ -42,5 +51,12 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
     
     return response;
+  }
+
+  bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) return value.toLowerCase() == 'true';
+    return false;
   }
 }

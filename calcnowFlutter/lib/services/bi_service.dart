@@ -1,20 +1,19 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BiService {
   static const String baseUrl = String.fromEnvironment(
     'CALCNOW_API_BASE_URL',
     defaultValue: 'http://localhost:3000',
   );
-  static const String biKey = String.fromEnvironment(
-    'CALCNOW_BI_KEY',
-    defaultValue: '',
-  );
 
-  Map<String, String> _headers() {
-    if (biKey.isEmpty) return {};
-    return {'x-bi-key': biKey};
+  Future<Map<String, String>> _headers() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null || token.isEmpty) return {};
+    return {'Authorization': 'Bearer $token'};
   }
 
   Future<Map<String, dynamic>> getAll({DateTime? from, DateTime? to}) async {
@@ -23,8 +22,9 @@ class BiService {
     if (to != null) params['to'] = _dateParam(to);
     final uri = Uri.parse('$baseUrl/api/bi/all')
         .replace(queryParameters: params.isEmpty ? null : params);
+    final headers = await _headers();
     final response =
-        await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 20));
+        await http.get(uri, headers: headers).timeout(const Duration(seconds: 20));
     if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('Error backend (${response.statusCode})');
     }
@@ -48,8 +48,9 @@ class BiService {
     if (to != null) params['to'] = _dateParam(to);
     final uri = Uri.parse('$baseUrl/api/bi/pdf')
         .replace(queryParameters: params.isEmpty ? null : params);
+    final headers = await _headers();
     final response =
-        await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 20));
+        await http.get(uri, headers: headers).timeout(const Duration(seconds: 20));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Error backend (${response.statusCode})');
     }
@@ -58,8 +59,9 @@ class BiService {
 
   Future<List<dynamic>> _getList(String path) async {
     final uri = Uri.parse('$baseUrl$path');
+    final headers = await _headers();
     final response =
-        await http.get(uri, headers: _headers()).timeout(const Duration(seconds: 10));
+        await http.get(uri, headers: headers).timeout(const Duration(seconds: 10));
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Error backend (${response.statusCode})');

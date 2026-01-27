@@ -16,6 +16,7 @@ app.use('/api/bi', require('./routes/bi.routes'));
 
 // SERVIDOR
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
     console.log(`API CalcNow corriendo en http://localhost:${PORT}`);
 });
