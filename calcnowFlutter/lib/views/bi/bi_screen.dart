@@ -98,7 +98,7 @@ class _BiScreenState extends State<BiScreen> {
       setState(() {
         _kpis = kpis.isNotEmpty ? kpis.first : {};
         _popularidad = popularidad;
-        _hipotecas = hipotecas;
+        _hipotecas = _filterWithProvincia(hipotecas);
         _nominas = nominas;
         _divisas = divisas;
         _topHipoteca = topHipoteca.isNotEmpty ? topHipoteca.first : {};
@@ -235,11 +235,6 @@ class _BiScreenState extends State<BiScreen> {
                         _sectionTitle('KPIs'),
                         _kpiGrid(_kpis),
                         const SizedBox(height: 24),
-                        _sectionTitle('Popularidad de modulos'),
-                        _listSection(_popularidad,
-                            emptyMessage:
-                                'Aun no hay informacion suficiente para generar estadisticas.'),
-                        const SizedBox(height: 24),
                         _sectionTitle('Hipotecas por provincia'),
                         _listSection(_hipotecas,
                             emptyMessage:
@@ -286,7 +281,15 @@ class _BiScreenState extends State<BiScreen> {
       );
     }
 
-    final entries = data.entries.toList();
+    final entries = data.entries
+        .where((e) => !_isEmptyKpiValue(e.value))
+        .toList();
+    if (entries.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text('Aun no hay informacion suficiente para generar estadisticas.'),
+      );
+    }
     return Wrap(
       spacing: 16,
       runSpacing: 16,
@@ -295,6 +298,7 @@ class _BiScreenState extends State<BiScreen> {
   }
 
   Widget _kpiCard(String label, dynamic value) {
+    final displayLabel = _kpiLabel(label);
     return Container(
       width: 200,
       padding: const EdgeInsets.all(16),
@@ -309,7 +313,7 @@ class _BiScreenState extends State<BiScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label,
+            displayLabel,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
@@ -372,6 +376,29 @@ class _BiScreenState extends State<BiScreen> {
         ],
       ),
     );
+  }
+
+  String _kpiLabel(String key) {
+    switch (key.toLowerCase()) {
+      case 'usuarios_registrados':
+        return 'Usuarios registrados';
+      case 'usuarios_activos':
+        return 'Usuarios activos';
+      case 'total_hipotecas':
+        return 'Total hipotecas';
+      case 'region_mas_hipotecas':
+        return 'Region con mas hipotecas';
+      default:
+        return key;
+    }
+  }
+
+  bool _isEmptyKpiValue(dynamic value) {
+    if (value == null) return true;
+    final text = value.toString().trim();
+    if (text.isEmpty) return true;
+    if (text.toLowerCase() == 'no especificado') return true;
+    return false;
   }
 
   Widget _keyValueCard(Map<String, dynamic> row,
@@ -474,6 +501,22 @@ class _BiScreenState extends State<BiScreen> {
       }
     }
     return false;
+  }
+
+  List<Map<String, dynamic>> _filterWithProvincia(List<Map<String, dynamic>> data) {
+    return data.where((row) {
+      for (final entry in row.entries) {
+        final key = entry.key.toString().toLowerCase();
+        if (key.contains('provincia')) {
+          final value = entry.value;
+          if (value == null) return false;
+          final text = value.toString().trim();
+          if (text.isEmpty || text.toLowerCase() == 'null') return false;
+          return true;
+        }
+      }
+      return false;
+    }).toList();
   }
 
   String _formatValue(String key, dynamic value) {

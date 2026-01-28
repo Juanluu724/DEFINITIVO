@@ -7,6 +7,81 @@ const getFilters = (req) => {
     return { from, to };
 };
 
+const safeNumber = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+};
+
+const normalizeLabel = (value, key, fallback) => {
+    if (value === null || value === undefined || value === '' || String(value).toLowerCase() === 'null') {
+        if (key && String(key).toLowerCase().includes('provincia')) {
+            return 'Provincia no especificada';
+        }
+        return fallback || 'No especificado';
+    }
+    return String(value);
+};
+
+const pickLabelValue = (row, fallback) => {
+    if (!row || typeof row !== 'object') {
+        return { label: fallback || 'No especificado', value: 0 };
+    }
+    const entries = Object.entries(row);
+    const labelKey = entries[0] ? entries[0][0] : null;
+    const label = entries[0] ? normalizeLabel(entries[0][1], labelKey, fallback) : (fallback || 'No especificado');
+    const value = entries[1] ? safeNumber(entries[1][1]) : 0;
+    return { label, value };
+};
+
+const computeHipotecasStats = (hipotecas = []) => {
+    const items = hipotecas.map((row) => pickLabelValue(row, 'Provincia no especificada'));
+    if (!items.length) {
+        return { total: 0, topRegion: null };
+    }
+    let total = 0;
+    let topRegion = null;
+    let topValue = -1;
+    for (const item of items) {
+        total += item.value;
+        if (item.value > topValue && item.label) {
+            topValue = item.value;
+            topRegion = item.label;
+        }
+    }
+    return { total, topRegion };
+};
+
+const normalizeProvinciaRows = (rows = []) => {
+    return rows.filter((row) => {
+        if (!row || typeof row !== 'object') return false;
+        for (const [key, value] of Object.entries(row)) {
+            const k = String(key).toLowerCase();
+            if (k.includes('provincia')) {
+                if (value === null || value === undefined) return false;
+                const text = String(value).trim();
+                if (!text || text.toLowerCase() === 'null') return false;
+                return true;
+            }
+        }
+        return false;
+    });
+};
+
+const pickTopProvincia = (rows = []) => {
+    let topRow = null;
+    let topValue = -1;
+    for (const row of rows) {
+        const entries = Object.entries(row || {});
+        if (entries.length < 2) continue;
+        const value = safeNumber(entries[1][1]);
+        if (value > topValue) {
+            topValue = value;
+            topRow = row;
+        }
+    }
+    return topRow ? [topRow] : [];
+};
+
 exports.kpisGlobales = async(req, res) => {
     try {
         const data = await biService.kpisGlobales(getFilters(req));
@@ -73,6 +148,23 @@ exports.topDivisa = async(req, res) => {
 exports.all = async(req, res) => {
     try {
         const data = await biService.getAll(getFilters(req));
+        data.hipotecas = normalizeProvinciaRows(data.hipotecas || []);
+        if (!Array.isArray(data.topHipoteca) || !data.topHipoteca[0]) {
+            data.topHipoteca = pickTopProvincia(data.hipotecas);
+        } else {
+            const topRow = data.topHipoteca[0];
+            const normalized = normalizeProvinciaRows([topRow]);
+            if (!normalized.length) {
+                data.topHipoteca = pickTopProvincia(data.hipotecas);
+            }
+        }
+        const stats = computeHipotecasStats(data.hipotecas || []);
+        if (!Array.isArray(data.kpis)) data.kpis = [];
+        if (!data.kpis[0]) data.kpis[0] = {};
+        data.kpis[0].total_hipotecas = stats.total;
+        if (stats.topRegion) {
+            data.kpis[0].region_mas_hipotecas = stats.topRegion;
+        }
         res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -82,6 +174,16 @@ exports.all = async(req, res) => {
 exports.pdf = async(req, res) => {
     try {
         const data = await biService.getAll(getFilters(req));
+        data.hipotecas = normalizeProvinciaRows(data.hipotecas || []);
+        if (!Array.isArray(data.topHipoteca) || !data.topHipoteca[0]) {
+            data.topHipoteca = pickTopProvincia(data.hipotecas);
+        } else {
+            const topRow = data.topHipoteca[0];
+            const normalized = normalizeProvinciaRows([topRow]);
+            if (!normalized.length) {
+                data.topHipoteca = pickTopProvincia(data.hipotecas);
+            }
+        }
         const doc = new PDFDocument({ margin: 40, size: 'A4' });
 
         res.setHeader('Content-Type', 'application/pdf');
@@ -92,32 +194,6 @@ exports.pdf = async(req, res) => {
         const margin = 40;
         const contentWidth = doc.page.width - margin * 2;
         let y = margin;
-
-        const safeNumber = (value) => {
-            const n = Number(value);
-            return Number.isFinite(n) ? n : 0;
-        };
-
-        const normalizeLabel = (value, key, fallback) => {
-            if (value === null || value === undefined || value === '' || String(value).toLowerCase() === 'null') {
-                if (key && String(key).toLowerCase().includes('provincia')) {
-                    return 'Provincia no especificada';
-                }
-                return fallback || 'No especificado';
-            }
-            return String(value);
-        };
-
-        const pickLabelValue = (row, fallback) => {
-            if (!row || typeof row !== 'object') {
-                return { label: fallback || 'No especificado', value: 0 };
-            }
-            const entries = Object.entries(row);
-            const labelKey = entries[0] ? entries[0][0] : null;
-            const label = entries[0] ? normalizeLabel(entries[0][1], labelKey, fallback) : (fallback || 'No especificado');
-            const value = entries[1] ? safeNumber(entries[1][1]) : 0;
-            return { label, value };
-        };
 
         const ensureSpace = (height) => {
             if (y + height > doc.page.height - margin) {
@@ -266,9 +342,15 @@ exports.pdf = async(req, res) => {
         const kpis = data.kpis && data.kpis[0] ? data.kpis[0] : {};
         const usuariosRegistrados = safeNumber(kpis.usuarios_registrados);
         const usuariosActivos = safeNumber(kpis.usuarios_activos);
+        const hipotecasStats = computeHipotecasStats(data.hipotecas || []);
 
         drawBand();
         drawKpiRow('Usuarios registrados', usuariosRegistrados, 'Usuarios activos', usuariosActivos);
+        if (hipotecasStats.topRegion) {
+            drawKpiRow('Total hipotecas', hipotecasStats.total, 'Region con mas hipotecas', hipotecasStats.topRegion);
+        } else {
+            drawKpiRow('Total hipotecas', hipotecasStats.total, '', '');
+        }
 
         drawCard('Uso total de la App (%)', 150, (x, yTop, width, height) => {
             drawPie(data.popularidad.map((row) => pickLabelValue(row)), x, yTop, width, height);
@@ -321,7 +403,7 @@ exports.pdf = async(req, res) => {
         const estadoUso = usuariosActivos === 0
             ? 'Estado de uso: fase inicial (sin usuarios activos).'
             : 'Estado de uso: en crecimiento con actividad registrada.';
-        drawCard('Resumen ejecutivo', 130, (x, yTop) => {
+        drawCard('Resumen ejecutivo', hipotecasStats.topRegion ? 150 : 130, (x, yTop) => {
             doc.fillColor('#111827').fontSize(11).text(
                 `Lugar hipotecas mas buscado: ${pickLabelValue(topHipoteca, 'Provincia no especificada').label}`,
                 x,
@@ -343,10 +425,28 @@ exports.pdf = async(req, res) => {
                 yTop + 54
             );
             doc.fillColor('#111827').fontSize(11).text(
-                estadoUso,
+                `Total hipotecas: ${hipotecasStats.total}`,
                 x,
                 yTop + 72
             );
+            if (hipotecasStats.topRegion) {
+                doc.fillColor('#111827').fontSize(11).text(
+                    `Region con mas hipotecas: ${hipotecasStats.topRegion}`,
+                    x,
+                    yTop + 90
+                );
+                doc.fillColor('#111827').fontSize(11).text(
+                    estadoUso,
+                    x,
+                    yTop + 108
+                );
+            } else {
+                doc.fillColor('#111827').fontSize(11).text(
+                    estadoUso,
+                    x,
+                    yTop + 90
+                );
+            }
         });
 
         doc.end();
